@@ -201,7 +201,7 @@ def sequential_sample(path_name, pose_graph, base_run, live_runs, temporal_lengt
 
             if base_vertex is None:
                 print(f'{path_name} - Sequential sampling: Could not localize {live_id} at topological distance ' \
-                      f'{temporal_length} (base vertex is None).'
+                      f'{temporal_length} (base vertex is None).')
                 continue
 
             # Create a sample ID and check that it has not already been added
