@@ -55,7 +55,7 @@ class Pipeline(nn.Module):
         image_coords = torch.stack((u_coord, v_coord), dim=0)  # 2xHW
         self.register_buffer('image_coords', image_coords)
 
-    def forward(self, net, images, disparities, poses_se3, poses_log, epoch, test):
+    def forward(self, net, images, disparities, poses_se3, poses_log, epoch):
 
         ################################################################################################################
         #  Setup of variables
@@ -214,7 +214,14 @@ class Pipeline(nn.Module):
 
         # We can choose to use just the keypoint loss and not compute pose for the first few epochs.
         if epoch >= self.config['start_svd']:
+
+            #  Check that we have enough inliers for all example sin the bach to compute pose.
             valid = kpt_valid[src_ind] & valid_pseudo & valid_inliers
+
+            num_inliers = torch.sum(valid.squeeze(1), dim=1)[0]
+            if torch.any(num_inliers < 6):
+                raise RuntimeError('Too few inliers to compute pose: {}'.format(num_inliers))
+
             weights[valid == 0] = 0.0
             T_trg_src = self.svd_block(kpt_3D_src, kpt_3D_pseudo, svd_weights)
 
@@ -282,10 +289,10 @@ class Pipeline(nn.Module):
         ################################################################################################################
 
         if epoch >= self.config['start_svd']:
-            return losses, T_trg_src, poses_se3[0]
+            return losses, T_trg_src
         else:
             # Haven't computed the pose yet, just the keypoint loss.
-            return losses, poses_se3[0], poses_se3[0]
+            return losses, poses_se3[0]
 
 
     def pose_loss(self, T, T_pred, loss_fn):

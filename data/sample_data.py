@@ -93,8 +93,8 @@ def random_sample(path_name, pose_graph, runs, num_samples, max_temporal_length)
             log_other_live = torch.tensor(Transform.LogMap(T_other_live), dtype=torch.float)
 
             samples.append(sample_id)
-            labels_se3[sample_id] = [torch.tensor(T_other_live.matrix, dtype=torch.float)]
-            labels_log[sample_id] = [torch.tensor(log_other_live, dtype=torch.float)]
+            labels_se3[sample_id] = torch.tensor(T_other_live.matrix, dtype=torch.float)
+            labels_log[sample_id] = torch.tensor(log_other_live, dtype=torch.float)
 
             sample_counter += 1
 
@@ -213,8 +213,8 @@ def sequential_sample(path_name, pose_graph, base_run, live_runs, temporal_lengt
                 log_base_live = torch.tensor(Transform.LogMap(T_base_live), dtype=torch.float)
 
                 samples.append(sample_id)
-                labels_se3[sample_id] = [torch.tensor(T_base_live.matrix, dtype=torch.float)]
-                labels_log[sample_id] = [torch.tensor(log_base_live, dtype=torch.float)]
+                labels_se3[sample_id] = torch.tensor(T_base_live.matrix, dtype=torch.float)
+                labels_log[sample_id] = torch.tensor(log_base_live, dtype=torch.float)
 
             else:
 

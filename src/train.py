@@ -3,7 +3,6 @@ import copy
 import json
 import os
 import pickle
-import re
 import sys
 import time
 
@@ -15,18 +14,14 @@ import torch.optim as optim
 from torch.utils import data
 
 from src.dataset import Dataset
-from src.losses.losses import compute_loss
+from src.model.pipeline import Pipeline
 from src.model.unet import UNet
 from src.utils.lie_algebra import se3_log, se3_exp
-from src.utils.path_tools import integrate_path_vo, integrate_path_loc, integrate_path_teach
 from src.utils.statistics import Statistics
-from src.utils.stereo_camera_model import StereoCameraModel
-from src.utils.transform2 import Transform
-from src.utils.utils import prepare_device
+from src.utils.transform import Transform
 from visualization.plots import Plotting
 
 torch.backends.cudnn.benchmark = True
-
 
 def excute_epoch(pipeline, net, data_loader, stats, epoch, mode, optimizer=None, scheduler=None):
     """
@@ -37,11 +32,11 @@ def excute_epoch(pipeline, net, data_loader, stats, epoch, mode, optimizer=None,
                                  computes pose and losses.
             net (torch.nn.Module): neural network module.
             data_loader (torch.utils.data.DataLoader): data loader for training data.
-            stats (TDRO):
+            stats (TODO):
             epoch (int): current epoch.
             mode (string): 'training' or 'validation'
-            optimizer (torch.optim.Optimizer or None): optimizer or None if validation.
-            scheduler(TODO or None): scheduler or None if validation.
+            optimizer (torch.optim.Optimizer or None): optimizer if training or None if validation.
+            scheduler(torch.optim.lr_scheduler or None): scheduler if training or None if validation.
     """
 
     start_time = time.time()
@@ -134,7 +129,7 @@ def excute_epoch(pipeline, net, data_loader, stats, epoch, mode, optimizer=None,
         print(f'Epoch duration: {time.time() - start} seconds. \n')
 
     # Run if we are training, and we are using a scheduler.
-    if scheduler is not None:
+    if mode == 'training':
         scheduler.step()
 
     return epoch_losses['total'], stats
@@ -162,6 +157,7 @@ def train(pipeline, net, optimizer, scheduler, train_loader, validation_loader, 
                                  computes pose and losses.
             net (torch.nn.Module): neural network module.
             optimizer (torch.optim.Optimizer): training optimizer.
+            scheduler (torch.optim.lr_scheduler): training scheduler.
             train_loader (torch.utils.data.DataLoader): data loader for training data.
             validation_loader (torch.utils.data.DataLoader): data loader for validation data.
             start_epoch (int): epoch we start training from, 0 if starting from scratch.
@@ -171,7 +167,7 @@ def train(pipeline, net, optimizer, scheduler, train_loader, validation_loader, 
             config (dict): configurations for model training.
             plotting (Plotting): object used to plot training statistics.
             results_path (string): directory for storing results (outputs, plots).
-            checkpoint_path (string)L directory to store the checkpoint.
+            checkpoint_path (string): directory to store the checkpoint.
     """
 
     # Early stopping keeps track of when we stop training (validation loss does not decrease) and when we store a
@@ -182,8 +178,8 @@ def train(pipeline, net, optimizer, scheduler, train_loader, validation_loader, 
     # The training loop.
     for epoch in range(start_epoch, config['trainer']['max_epochs']):
 
-        train_loss = self.execute_epoch(pipeline, net, optimizer, train_loader, train_stats, epoch, mode='training')
-        validation_loss = self.execute_epoch(pipeline, net, optimizer, train_loader, train_stats, epoch, mode='validation')
+        train_loss = self.execute_epoch(pipeline, net, train_loader, train_stats, epoch, 'training', optimizer, scheduler)
+        validation_loss = self.execute_epoch(pipeline, net, validation_loader, validation_stats, epoch, 'validation')
 
         # Only start checking the loss after we start computing the pose loss. Sometimes we only compute keypoint loss
         # for the first few epochs.
