@@ -18,11 +18,11 @@ from src.utils.utils import MELData, compute_mean_std
 def main(config):
 
     # Directory to store outputs to stdout/stderr.
-    results_path = f"{config['home_path']}/results/dataset/{config['path_name']}/"
+    results_path = f"{config['home_path']}/results/dataset/{config['dataset_name']}/"
     # Directory where the data is stored (images, transforms text files).
     data_path = f"{config['data_path']}/"
     # File to store the generated training dataset.
-    dataset_path = f"{config['home_path']}datasets/{config['path_name']}.pickle"
+    dataset_path = f"{config['home_path']}datasets/{config['dataset_name']}.pickle"
 
     if not os.path.exists(results_path):
         os.makedirs(results_path)
@@ -79,7 +79,7 @@ def main(config):
     print(f'Generating training and validation datasets took {time.time() - start} s')
 
     # Compute mean and std_dev for the training set to use for input normalization if desirable.
-    mean, std_dev = compute_mean_std(mel_data, data_path, True)
+    mean, std_dev = compute_mean_std(mel_data, data_path, config['dataset']['height'], config['dataset']['width'])
     mel_data.mean = mean
     mel_data.std_dev = std_dev
 

@@ -1,16 +1,16 @@
 {
   "home_path": "/home/mgr",
-  "experiment_name": "test_model",
+  "experiment_name": "train_model",
   "device_ids": [0],
 
   "training": {
     "start_svd": 2,
-    "max_epochs": 600,
-    "patience": 100
+    "max_epochs": 500,
+    "patience": 50
   },
 
   "network": {
-    "name": "net_test",
+    "name": "unet_v1",
     "n_channels": 3,
     "n_classes": 1,
     "layer_size": 16,

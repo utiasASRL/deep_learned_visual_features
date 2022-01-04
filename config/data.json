@@ -1,21 +1,14 @@
 {
   "home_path": "path/to/home",
   "data_path": "path/to/data",
-  "path_name": "multiseason_v1",
+  "dataset_name": "multiseason_v1",
   "num_train_samples": 1000,
   "num_validation_samples": 200,
   "max_temporal_len": 1,
 
   "dataset":{
-    "args": {
-      "desired_height": 384,
-      "desired_width": 512,
-      "use_stereo": true,
-      "use_ref_images": false,
-      "use_normalization": false,
-      "use_crop": false,
-      "use_disparity": false
-    }
+      "height": 384,
+      "width": 512
   },
 
   "train_paths": ["multiseason"],
