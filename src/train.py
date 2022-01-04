@@ -1,5 +1,4 @@
 import argparse
-import copy
 import json
 import os
 import pickle
@@ -16,9 +15,8 @@ from torch.utils import data
 from src.dataset import Dataset
 from src.model.pipeline import Pipeline
 from src.model.unet import UNet
-from src.utils.lie_algebra import se3_log, se3_exp
+from src.utils.lie_algebra import se3_log
 from src.utils.statistics import Statistics
-from src.utils.transform import Transform
 from visualization.plots import Plotting
 
 torch.backends.cudnn.benchmark = True
@@ -32,13 +30,12 @@ def excute_epoch(pipeline, net, data_loader, stats, epoch, mode, optimizer=None,
                                  computes pose and losses.
             net (torch.nn.Module): neural network module.
             data_loader (torch.utils.data.DataLoader): data loader for training data.
-            stats (TODO):
+            stats (Statistics): an object for keeping track of losses and errors during training.
             epoch (int): current epoch.
             mode (string): 'training' or 'validation'
             optimizer (torch.optim.Optimizer or None): optimizer if training or None if validation.
             scheduler(torch.optim.lr_scheduler or None): scheduler if training or None if validation.
     """
-
     start_time = time.time()
 
     if mode == 'training':
@@ -135,17 +132,20 @@ def excute_epoch(pipeline, net, data_loader, stats, epoch, mode, optimizer=None,
     return epoch_losses['total'], stats
 
 
-def plot_epoch_statistics(self):
+def plot_epoch_statistics(self, train_stats, validation_stats, plotting):
     """
-    Plot the losses from training and validation
+        Plot the losses from training and validation over epochs.
+
+        Args:
+            train_stats (Statistics): an object for keeping track of losses and errors for the training data.
+            validation_stats (Statistics): an object for keeping track of losses and errors for the validation data.
+            plotting (Plotting): an object to handle plotting.
     """
-    train_epoch_stats = self.train_stats.get_epoch_stats()
-    valid_epoch_stats = self.valid_stats.get_epoch_stats()
-    # valid_epoch_stats = self.train_stats.get_epoch_stats()
+    train_epoch_stats = train_stats.get_epoch_stats()
+    valid_epoch_stats = validation_stats.get_epoch_stats()
 
-    self.plotting.plot_epoch_losses(train_epoch_stats[0], valid_epoch_stats[0])
-    self.plotting.plot_epoch_errors(train_epoch_stats[1], valid_epoch_stats[1])
-
+    plotting.plot_epoch_losses(train_epoch_stats[0], valid_epoch_stats[0])
+    plotting.plot_epoch_errors(train_epoch_stats[1], valid_epoch_stats[1])
 
 def train(pipeline, net, optimizer, scheduler, train_loader, validation_loader, start_epoch, min_validation_loss,
           train_stats, validation_stats, config, plotting, results_path, checkpoint_path):
@@ -162,10 +162,10 @@ def train(pipeline, net, optimizer, scheduler, train_loader, validation_loader, 
             validation_loader (torch.utils.data.DataLoader): data loader for validation data.
             start_epoch (int): epoch we start training from, 0 if starting from scratch.
             min_validation_loss (float): the minimum validation loss during training.
-            train_stats (TODO):
-            validation_stats (TODO):
+            train_stats (Statistics): an object for keeping track of losses and errors for the training data.
+            validation_stats (Statistics): an object for keeping track of losses and errors for the validation data.
             config (dict): configurations for model training.
-            plotting (Plotting): object used to plot training statistics.
+            plotting (Plotting): object to handle plotting.
             results_path (string): directory for storing results (outputs, plots).
             checkpoint_path (string): directory to store the checkpoint.
     """
@@ -186,7 +186,7 @@ def train(pipeline, net, optimizer, scheduler, train_loader, validation_loader, 
         if epoch >= config['start_svd']:
 
             # Plot the losses during training and validations.
-            self._plot_epoch_statistics()
+            plot_epoch_statistics(train_stats, validation_stats, plotting)
 
             stop, min_validation_loss = early_stopping.check_stop(validation_loss,
                                                                   net,
@@ -301,7 +301,7 @@ def main(config):
     train(training_pipeline, net, train_loader, validation_loader, start_epoch, min_validation_loss,
           train_stats, validation_stats, config, plotting, results_path, checkpoint_path)
 
-    # Stop writing outputs to files.
+    # Stop writing outputs to file.
     sys.stdout = orig_stdout
     fl.close()
     sys.stderr = orig_stderr
