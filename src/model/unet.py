@@ -85,17 +85,26 @@ class UNet(nn.Module):
         Unet network to compute keypoint detector values, descriptors, and scores.
     """
     def __init__(self, n_channels, n_classes, layer_size):
+        """
+            Initialize the network with one encoder and two decoders.
+
+            Args:
+                num_channels (int): number of channels in the input image (we use 3 for one RGB image).
+                num_classes (int): number of classes (output channels from the decoder), 1 in our case.
+                layer_size (int): size of the first layer if the encoder. The size of the following layers are
+                                  determined from this.
+        """
         super(UNet, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
         bilinear = True
         m = layer_size
 
-        self.inc = DoubleConv(n_channels, m)  # 512 x 384 (out size after layer)
-        self.down1 = Down(m, m * 2)           # 256 x 192
-        self.down2 = Down(m * 2, m * 4)       # 128 x 96
-        self.down3 = Down(m * 4, m * 8)       # 64 x 48
-        self.down4 = Down(m * 8, m * 16)      # 32 x 24
+        self.inc = DoubleConv(n_channels, m)  # 384 x 512 (height/width after layer given 384 x 512 input image)
+        self.down1 = Down(m, m * 2)           # 192 x 256
+        self.down2 = Down(m * 2, m * 4)       #  96 x 128
+        self.down3 = Down(m * 4, m * 8)       #  48 x  64
+        self.down4 = Down(m * 8, m * 16)      #  24 x  32
 
         self.up1_pts = Up(m * 24, m * 8, bilinear)
         self.up2_pts = Up(m * 12, m * 4, bilinear)
@@ -146,10 +155,9 @@ class UNet(nn.Module):
         score = self.outc_score(x1_up_score)
         score = self.sigmoid(score)
 
-        # Resize outputs of downsampling layers to the size of the original
-        # image. Features are interpolated using bilinear interpolation to
-        # get gradients for back-prop. Concatenate along the feature channel
-        # to get pixel-wise descriptors of size BxCxHxW
+        # Resize outputs of each encoder layer to the size of the original image. Features are interpolated using
+        # bilinear interpolation to get gradients for back-prop. Concatenate along the feature channel to get
+        # pixel-wise descriptors of size BxCxHxW.
         f1 = F.interpolate(x1, size=(height, width), mode='bilinear')
         f2 = F.interpolate(x2, size=(height, width), mode='bilinear')
         f3 = F.interpolate(x3, size=(height, width), mode='bilinear')

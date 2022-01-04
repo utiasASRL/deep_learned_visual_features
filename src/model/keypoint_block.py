@@ -8,6 +8,16 @@ class KeypointBlock(nn.Module):
         Given the dense detector values from the UNet decoder, compute the 2D keypoints.
     """
     def __init__(self, window_height, window_width, image_height, image_width):
+        """
+            Initialize by setting the height and width of windows where keypoints should be detected. One keypoint is
+            detected per window and hence the size of the windows determines the number of possible keypoints.
+
+            Args:
+                window_height (int): height of window, inside which we detect one keypoint.
+                window_width (int): width of window, inside which we detect one keypoint.
+                image_height (int): height of the image.
+                image_width (int): width of the image.
+        """
         super(KeypointBlock, self).__init__()
         self.window_height = window_height
         self.window_width = window_width
@@ -19,8 +29,6 @@ class KeypointBlock(nn.Module):
 
         self.register_buffer('v_coords', v_coords)
         self.register_buffer('u_coords', u_coords)
-
-        self.sigmoid = nn.Sigmoid()
 
     def forward(self, detector_values):
         """

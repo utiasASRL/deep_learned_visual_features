@@ -11,9 +11,15 @@ class SVDBlock(nn.Module):
         Compute the relative pose between the source and target frames.
     """
     def __init__(self, T_s_v):
+        """
+            Initialize the SVD class.
+
+            Args:
+                T_s_v (torch.tensor): 4x4 transformation matrix providing the transform from the vehicle frame to the
+                                      sensor frame.
+        """
         super(SVDBlock, self).__init__()
 
-        # Transform from vehicle to sensor frame.
         self.register_buffer('T_s_v', T_s_v)
 
     def forward(self, keypoints_3D_src, keypoints_3D_trg, weights):

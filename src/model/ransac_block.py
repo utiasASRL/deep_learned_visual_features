@@ -12,7 +12,18 @@ class RANSACBlock(nn.Module):
     """
         Use RANSAC for outlier rejection during inference.
     """
+
     def __init__(self, inlier_threshold, error_tolerance, num_iterations, T_s_v):
+        """
+            Initialize RANSAC by setting values used to determine how many iterations to run.
+
+            Args:
+                inlier_threshold (float): the minimum number of inliers we want, quit RANSAC when this is achieved.
+                error_tolerance (float): error must be smaller than or equal to threshold to this be considered inlier.
+                num_iterations (float): maximum number of iterations to run before giving up.
+                T_s_v (torch.tensor): 4x4 transformation matrix providing the transform from the vehicle frame to the
+                                      sensor frame.
+        """
         super(RANSACBlock, self).__init__()
 
         # Transform from vehicle to sensor frame.
@@ -21,9 +32,9 @@ class RANSACBlock(nn.Module):
         self.stereo_cam = StereoCameraModel(config['stereo']['cu'], config['stereo']['cv'],
                                             config['stereo']['f'], config['stereo']['b'])
 
-        self.inlier_threshold = inlier_threshold # Min number of inliers wanted.
-        self.error_tolerance = error_tolerance   # Maximum error to be considered inlier.
-        self.num_iterations = num_iterations     # Maximum number of iteration before giving up.
+        self.inlier_threshold = inlier_threshold
+        self.error_tolerance = error_tolerance
+        self.num_iterations = num_iterations
 
         self.svd = SVDBlock()
 
@@ -41,12 +52,11 @@ class RANSACBlock(nn.Module):
                                                      (i.e. can be used for pose computation).
                 weights (torch.tensor, Bx1xN): weights in range (0, 1) associated with the matched source and
                                                target points.
-                dim (str):  '2D' or '3D' to specify if error should be taken btetween 2D image coordinates or 3D point
+                dim (str):  '2D' or '3D' to specify if error should be taken between 2D image coordinates or 3D point
                             coordinates.
 
             Returns:
                 inliers (torch.tensor, BxN):
-
         """
         batch_size, _, n_points = keypoints_3D_src.size()
 

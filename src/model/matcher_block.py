@@ -8,12 +8,9 @@ class MatcherBlock(nn.Module):
         values from descriptor matching to compute the coordinates of the matched keypoints in the target frame, which
         we call pseudo-points.
     """
-    def __init__(self, window_height, window_width):
-        super(MatcherBlock, self).__init__()
 
-        self.window_height = window_height
-        self.window_width = window_width
-        self.temperature = 0.01
+    def __init__(self):
+        super(MatcherBlock, self).__init__()
 
     def forward(self, kpt_2D_src, kpt_2D_trg, kpt_desc_norm_src, kpt_desc_norm_trg):
         """
@@ -45,7 +42,8 @@ class MatcherBlock(nn.Module):
                      / float(kpt_desc_norm_trg.size(1))        # BxNx(HW or N)
 
         match_vals = (match_vals + 1.0) # [-1, 1] -> [0, 2]
-        soft_match_vals = F.softmax(match_vals / self.temperature, dim=2)  # BxNx(HW or N)
+        temperature = 0.01
+        soft_match_vals = F.softmax(match_vals / 0.01, dim=2)  # BxNx(HW or N)
 
         # Compute pseudo-point as weighted sum of point coordinates from target image, Bx2xN
         kpt_2D_pseudo = torch.matmul(kpt_2D_trg, soft_match_vals.transpose(2, 1))

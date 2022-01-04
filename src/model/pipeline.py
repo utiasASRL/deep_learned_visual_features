@@ -13,7 +13,19 @@ from src.utils.lie_algebra import se3_inv, se3_log, se3_exp
 from src.utils.stereo_camera_model import StereoCameraModel
 
 class Pipeline(nn.Module):
+    """
+        The Pipeline class implements the training pipeline. It takes a source and target image pair and the ground
+        truth relative pose between them. It calls functions to execute the steps of the training pipeline such as
+        keypoint detection, descriptor and score computation, keypoint matching, 3D point computation and, finally,
+        pose computation. It also computes the loss functions for training.
+    """
     def __init__(self, config):
+        """
+            Set up variables needed in the training pipeline.
+
+            Args:
+                config (dict): dictionary with the configuration parameters for the training pipeline.
+        """
         super(Pipeline, self).__init__()
 
         self.config = config
@@ -35,7 +47,7 @@ class Pipeline(nn.Module):
 
         # Set up the different blocks needed in the pipeline
         self.keypoint_block = KeypointBlock(self.window_h, self.window_w, self.height, self.width)
-        self.matcher_block = MatcherBlock(self.window_h, self.window_w)
+        self.matcher_block = MatcherBlock()
         self.weight_block = WeightBlock()
         self.svd_block = SVDBlock(self.T_s_v)
 
@@ -55,7 +67,29 @@ class Pipeline(nn.Module):
         image_coords = torch.stack((u_coord, v_coord), dim=0)  # 2xHW
         self.register_buffer('image_coords', image_coords)
 
-    def forward(self, net, images, disparities, poses_se3, poses_log, epoch):
+    def forward(self, net, images, disparities, pose_se3, pose_log, epoch):
+        """
+            A forward pass of the training piepline to estimate the relative pose given a source and target image
+            pair. Also computes losses for training.
+
+            Args:
+                net (torch.nn.Module): neural network module.
+                images (torch.tensor): a stereo pair of RGB source and target images stacked together (Bx12xHxW).
+                disparities (torch.tensor): a pair of source and target disparity images stacked together (Bx2xHxW).
+                                            The disparity is estimated from the left and right stereo pair.
+                pose_se3 (torch.tensor): a 4x4 matrix representing the ground truth relative pose transformation from
+                                          the source to target frame, T_trg_src (Bx4x4).
+                pose_log (torch.tensor): a length 6 vector representing the ground truth relative pose transformation
+                                          from the source to target frame (Bx6).
+                epoch (int): the current training epoch.
+
+            Returns:
+                losses (dict): a dictionary mapping the type of loss to its value. Also includes the weighted sum of
+                               the individual losses.
+                T_trg_src (torch.tensor): a 4x4 matrix representing the estimated relative pose transformation from
+                                          the source to target frame, T_trg_src (Bx4x4).
+        """
+
 
         ################################################################################################################
         #  Setup of variables
@@ -67,9 +101,8 @@ class Pipeline(nn.Module):
         images = images[:, im_channels, :, :].cuda()
         disparities = disparities.cuda()
 
-        for i in range(len(poses_se3)):
-            poses_se3[i] = poses_se3[i].cuda() # Pose 4x4 matrices
-            poses_log[i] = poses_log[i].cuda() # Pose 6x1 vectors
+        pose_se3 = pose_se3.cuda()
+        pose_log = pose_log.cuda()
 
         # Variables to store the loss
         losses = {'total': torch.zeros(1).cuda()}
@@ -149,9 +182,12 @@ class Pipeline(nn.Module):
             # For training, we use the ground truth pose to find the ground truth location of the target points by
             # transforming them from the source frame to the target frames.
 
+            T_trg_src_gt_inl = pose_se3 # Ground truth transform to use to find inliers.
+
             if 'plane' in self.config['outlier_rejection']['dim']:
-                # If we use only part of the ground truth pose (x, y, heading) we transform the points in the plane only.
-                log_pose = poses_log[0]
+                # If we use only part of the ground truth pose (x, y, heading) we transform the points in the plane
+                # only and adjust the ground truth transform accordingly.
+                log_pose = pose_log
 
                 one = torch.ones(batch_size).cuda()    # B
                 zero = torch.zeros(batch_size).cuda()  # B
@@ -164,10 +200,6 @@ class Pipeline(nn.Module):
                 trans_col = torch.stack([log_pose[:, 0], log_pose[:, 1], zero.clone(), one.clone()], dim=1) # Bx4
 
                 T_trg_src_inl_gt = torch.stack([rot_col1, rot_col2, rot_col3, trans_col], dim=2)  # Bx4x4
-
-            else:
-                # We use the full ground truth pose to transform the points.
-                T_trg_src_inl_gt = poses[v_pair]
 
             T_s_v = self.T_s_v.expand(batch_size, 4, 4)
             T_trg_src_inl_gt_sensor = T_s_v.bmm(T_trg_src_inl_gt).bmm(se3_inv(T_s_v)) # Transform pose to sensor frame.
@@ -262,7 +294,7 @@ class Pipeline(nn.Module):
         # Pose loss either using the full 6DOF pose or a subset (x, y, heading).
         if epoch >= self.config['start_svd']:
             if ('pose' in loss_types):
-                T_trg_src_gt = poses_se3[0]
+                T_trg_src_gt = pose_se3
                 rot_loss, trans_loss = self.pose_loss(T_trg_src_gt, T_trg_src, mse_loss_fn)
                 rotation_loss = loss_weights['rotation'] * rot_loss
                 translation_loss = loss_weights['translation'] * trans_loss
@@ -277,7 +309,7 @@ class Pipeline(nn.Module):
                 w[5] = loss_weights['rotation_heading']
                 w = torch.diag(w).unsqueeze(0).expand(batch_size, 6, 6).cuda()
 
-                T_trg_src_gt = poses_se3[0]
+                T_trg_src_gt = pose_se3
                 log_pose_err = se3_log(T_trg_src.bmm(torch.inverse(T_trg_src_gt))).unsqueeze(2)
                 pose_loss = (1.0 / batch_size) * torch.sum(log_pose_err.transpose(2, 1).bmm(w).bmm(log_pose_err))
 
@@ -292,29 +324,32 @@ class Pipeline(nn.Module):
             return losses, T_trg_src
         else:
             # Haven't computed the pose yet, just the keypoint loss.
-            return losses, poses_se3[0]
+            return losses, pose_se3
 
 
-    def pose_loss(self, T, T_pred, loss_fn):
+    def pose_loss(self, T, T_est, loss_fn):
+        """
+            Compute the pose loss using all DOF.
+
+            Args:
+                T (torch.tensor): the ground truth pose represented as a 4x4 matrix (Bx4x4).
+                T_est (torch.tensor): the estimated pose represented as a 4x4 matrix (Bx4x4).
+                loss_fn (): the loss function to use.
+
+            Returns:
+                rot_loss (float): the pose loss for the rotational DOF.
+                trans_loss (float): the pose loss for the translational DOF.
+        """
         batch_size = T.size(0)
 
-        R_pred = T_pred[:, 0:3, 0:3]
+        R_est = T_est[:, 0:3, 0:3]
         R = T[:, 0:3, 0:3]
         identity = torch.eye(3).unsqueeze(0).expand(batch_size, 3, 3).cuda()
 
-        rot_loss = loss_fn(R_pred.transpose(2, 1).bmm(R), identity)
-        trans_loss = loss_fn(T_pred[:, 0:3, 3], T[:, 0:3, 3])
+        rot_loss = loss_fn(R_est.transpose(2, 1).bmm(R), identity)
+        trans_loss = loss_fn(T_est[:, 0:3, 3], T[:, 0:3, 3])
 
         return rot_loss, trans_loss
-
-    def print_loss(self, losses, epoch, iter):
-        print('\nepoch {}:'.format(epoch, iter))
-
-        for key in losses:
-            print('{}: {}'.format(key, losses[key].item()))
-
-        print('', flush=True)
-
 
 
 
