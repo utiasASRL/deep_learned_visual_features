@@ -9,9 +9,6 @@ import torch
 from torch.utils import data
 from torchvision import transforms
 
-from src.utils.lie_algebra import se3_log, se3_inv
-from src.utils.transform import Transform
-
 class Dataset(data.Dataset):
     """
         Dataset for the VT&R localization data.
