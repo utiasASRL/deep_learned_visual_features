@@ -106,12 +106,12 @@ def random_sample(path_name, pose_graph, runs, num_samples, max_temporal_length)
     return samples, labels_se3, labels_log
 
 
-def sequential_sample(path_name, pose_graph, base_run, live_runs, temporal_length):
+def sequential_sample(path_name, pose_graph, map_run_id, live_runs, temporal_length):
     """
         Sample relative pose transforms for localization sequentially from the pose graph. Compute the pose from
-        vertices from each of the live runs to the one base run (can think of this as localizing live runs to a map
-        run). Compute the pose for each vertex on the live runs sequentially. Record the pose transform as a 4x4 matrix
-        and the 6 DOF vector equivalent. The pose from vertex, v1, to vertex, v2, is given as T_v2_v1.
+        vertices from each of the live runs to one map run. Compute the pose for each vertex on the live runs
+        sequentially. Record the pose transform as a 4x4 matrix and the 6 DOF vector equivalent. The pose from vertex,
+        v1, to vertex, v2, is given as T_v2_v1.
 
         Create sample ids the vertex ids. A vertex id consists of the id of the run the vertex belongs to and the id of
         the pose along that run, i.e. vertex_id = (run_id, pose_id). The sample id corresponding to pose transform
@@ -120,8 +120,8 @@ def sequential_sample(path_name, pose_graph, base_run, live_runs, temporal_lengt
         Args:
             path_name (string): name given to the path that the pose graph represents.
             pose_graph (Graph): the pose graph.
-            base_run (int): the run to localize to, i.e. compute the relative pose to vertices on this run.
-            live_runs (list[int]): the runs we localize to the base_run, i.e. compute relative pose from vertices on
+            map_run_id (int): id of the run to localize to, i.e. compute the relative pose to vertices on this run.
+            live_runs (list[int]): the runs we localize to the map run, i.e. compute relative pose from vertices on
                                    these runs.
             temporal_length (int): we can 'walk along' the pose graph to pair vertices that har further apart (i.e.
                                    not the closest pair). We set a fixed topological distance/steps we move away
@@ -142,9 +142,6 @@ def sequential_sample(path_name, pose_graph, base_run, live_runs, temporal_lengt
     vertex_ids = pose_graph.get_all_vertices().keys()
     vertex_ids = sorted(vertex_ids, key=itemgetter(0,1))
 
-    live_id_prev = None
-    base_id_prev = None
-
     # Localize each vertex in the live run sequentially.
     for live_id in vertex_ids:
         
@@ -153,41 +150,41 @@ def sequential_sample(path_name, pose_graph, base_run, live_runs, temporal_lengt
         if live_vertex is None:
             continue
         
-        if (live_id[0] in compare_runs) and (live_id[0] != base_run):
+        if (live_id[0] in compare_runs) and (live_id[0] != map_run_id):
 
             radius = temporal_length + 1
             max_radius = 8
-            base_pose_id = -1
+            map_pose_id = -1
             smallest_metric_dist = 1000
             chosen_topo_dist = 1000
 
-            # Try to find a vertex on the base run to localize against. If we can find one at the specified topological
+            # Try to find a vertex on the map run to localize against. If we can find one at the specified topological
             # distance, then increase the search radius.
-            while (base_pose_id == -1) and (radius <= max_radius):
+            while (map_pose_id == -1) and (radius <= max_radius):
                 try:
                     neighbour_ids = pose_graph.get_topo_neighbours(live_id, radius)
                 except Exception as e:
                     print(e)
-                    print(f'{path_name} - Sequential sampling: Could not localize {live_id} to base run, topological' \
+                    print(f'{path_name} - Sequential sampling: Could not localize {live_id} to map run, topological' \
                           f' neighbours failed')
                     radius += 1
                     continue
 
-                # Find the closest vertex (on the base run) of the valid neighbours to localize to.
+                # Find the closest vertex (on the map run) of the valid neighbours to localize to.
                 for n_id in neighbour_ids:
-                    if n_id[0] == base_run:
+                    if n_id[0] == map_run_id:
                         topo_dist = pose_graph.get_topological_dist(live_id, n_id)
                         T_n_live = pose_graph.get_transform(live_id, n_id)
                         metric_dist = np.linalg.norm(T_n_live.r_ab_inb)
                         if (metric_dist < smallest_metric_dist) and (topo_dist >= temporal_length + 1):
                             smallest_metric_dist = metric_dist
                             chosen_topo_dist = topo_dist
-                            base_pose_id = n_id[1]
+                            map_pose_id = n_id[1]
 
                 radius += 1
 
-            if base_pose_id == -1:
-                print(f'{path_name} - Sequential sampling: Could not localize {live_id} to base run ' \
+            if map_pose_id == -1:
+                print(f'{path_name} - Sequential sampling: Could not localize {live_id} to map run ' \
                       f'within {max_radius -1} edges.')
                 continue
 
@@ -195,26 +192,26 @@ def sequential_sample(path_name, pose_graph, base_run, live_runs, temporal_lengt
                 print(f'{path_name} - Sequential sampling: Could not match {live_id} at topological distance ' \
                       f'{temporal_length}, matched at length {chosen_topo_dist - 1} instead.')
 
-            # Get the base vertex we want to localize to.
-            base_id = (base_run, base_pose_id)
-            base_vertex = pose_graph.get_vertex(base_id)
+            # Get the map vertex we want to localize to.
+            map_id = (map_run_id, map_pose_id)
+            map_vertex = pose_graph.get_vertex(map_id)
 
-            if base_vertex is None:
+            if map_vertex is None:
                 print(f'{path_name} - Sequential sampling: Could not localize {live_id} at topological distance ' \
-                      f'{temporal_length} (base vertex is None).')
+                      f'{temporal_length} (map vertex is None).')
                 continue
 
             # Create a sample ID and check that it has not already been added
-            sample_id = f'{path_name}-{live_id[0]}-{live_id[1]}-{base_id[0]}-{base_id[1]}'
+            sample_id = f'{path_name}-{live_id[0]}-{live_id[1]}-{map_id[0]}-{map_id[1]}'
             
             if not sample_id in samples:
                 
-                T_base_live = pose_graph.get_transform(live_id, base_id) 
-                log_base_live = torch.tensor(Transform.LogMap(T_base_live), dtype=torch.float)
+                T_map_live = pose_graph.get_transform(live_id, map_id)
+                log_map_live = torch.tensor(Transform.LogMap(T_map_live), dtype=torch.float)
 
                 samples.append(sample_id)
-                labels_se3[sample_id] = torch.tensor(T_base_live.matrix, dtype=torch.float)
-                labels_log[sample_id] = torch.tensor(log_base_live, dtype=torch.float)
+                labels_se3[sample_id] = torch.tensor(T_map_live.matrix, dtype=torch.float)
+                labels_log[sample_id] = torch.tensor(log_map_live, dtype=torch.float)
 
             else:
 

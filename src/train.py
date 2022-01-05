@@ -148,7 +148,7 @@ def plot_epoch_statistics(self, train_stats, validation_stats, plotting):
     plotting.plot_epoch_errors(train_epoch_stats[1], valid_epoch_stats[1])
 
 def train(pipeline, net, optimizer, scheduler, train_loader, validation_loader, start_epoch, min_validation_loss,
-          train_stats, validation_stats, config, plotting, results_path, checkpoint_path):
+          train_stats, validation_stats, config, results_path, checkpoint_path):
     """
         Run the training loop.
 
@@ -165,10 +165,11 @@ def train(pipeline, net, optimizer, scheduler, train_loader, validation_loader, 
             train_stats (Statistics): an object for keeping track of losses and errors for the training data.
             validation_stats (Statistics): an object for keeping track of losses and errors for the validation data.
             config (dict): configurations for model training.
-            plotting (Plotting): object to handle plotting.
             results_path (string): directory for storing results (outputs, plots).
             checkpoint_path (string): directory to store the checkpoint.
     """
+    # Helper class for plotting results.
+    plotting = Plotting(results_path)
 
     # Early stopping keeps track of when we stop training (validation loss does not decrease) and when we store a
     # checkpoint (each time validation loss decreases below or is equal to the minimum value).
@@ -208,18 +209,20 @@ def main(config):
         Args:
             config (dict): configurations for training the network.
     """
-
-    results_path = '{0}/results/{}'.format(config['home_path'], config['experiment_name'])
-    networks_path = '{0}/networks'.format(config['home_path'])
-    data_path = '{0}/data'.format(config['data_path'])
-    datasets_path = '{0}/datasets'.format(config['home_path'])
+    results_path = f"{config['home_path']}/results/{config['experiment_name']}"
+    networks_path = f"{config['home_path']}/networks"
+    data_path = f"{config['data_path']}/data"
+    datasets_path = f"{config['home_path']}/datasets"
 
     checkpoint_name = config['checkpoint']
     network_name = config['network_name']
     dataset_name = config['dataset_name']
 
-    dataset_path = '{0}/{1}.pickle'.format(datasets_path, dataset_name)
-    checkpoint_path = '{0}/{1}.pth'.format(networks_path, checkpoint_name)
+    dataset_path = f'{datasets_path}/{dataset_name}.pickle'
+    checkpoint_path = f'{networks_path}/{checkpoint_name}.pth'
+
+    if not os.path.exists(results_path):
+        os.makedirs(results_path)
 
     # Print outputs to files
     orig_stdout = sys.stdout
@@ -230,28 +233,28 @@ def main(config):
     fe = open(results_path + 'err_train.txt', 'w')
     sys.stderr = fe
 
-    # Record the config settings
+    # Record the config settings.
     print(config)
 
-    # Load the data
+    # Load the data.
     dataloader_params = config['data_loader']
     dataset_params = config['dataset']
     dataset_params['data_dir'] = data_path
 
-    loc_data = None
+    localization_data = None
     with open(dataset_path, 'rb') as handle:
-        loc_data = pickle.load(handle)
+        localization_data = pickle.load(handle)
 
     # Training data generator
-    train_set = Dataset(config['num_frames'], False, **dataset_params)
+    train_set = Dataset(**dataset_params)
     train_sampler = RandomSampler(train_set, replacement=True, num_samples=10000)
-    train_set.load_mel_data(loc_data, 'train')
+    train_set.load_mel_data(localization_data, 'train')
     train_loader = data.DataLoader(train_set, sampler=train_sampler, **dataloader_params)
 
     # Validation data generator
-    validation_set = Dataset(config['num_frames'], False, **dataset_params)
+    validation_set = Dataset(**dataset_params)
     validation_sampler = RandomSampler(validation_set, replacement=True, num_samples=2500)
-    validation_set.load_mel_data(loc_data, 'validate')
+    validation_set.load_mel_data(localization_data, 'validation')
     validation_loader = data.DataLoader(validation_set, sampler=validation_sampler, **dataloader_params)
 
     # Set up device, using GPU 0
@@ -260,7 +263,7 @@ def main(config):
 
     # Set training pipeline
     training_pipeline = Pipeline(config)
-    training_pipeline = training_pipeline.to(device)
+    training_pipeline = training_pipeline.cuda()
 
     # Set up the network, optimizer, and scheduler
     net = UNet(config['network']['num_channels'],
@@ -296,10 +299,8 @@ def main(config):
 
     net.cuda()
 
-    plotting = Plotting(results_path)
-
     train(training_pipeline, net, train_loader, validation_loader, start_epoch, min_validation_loss,
-          train_stats, validation_stats, config, plotting, results_path, checkpoint_path)
+          train_stats, validation_stats, config, results_path, checkpoint_path)
 
     # Stop writing outputs to file.
     sys.stdout = orig_stdout

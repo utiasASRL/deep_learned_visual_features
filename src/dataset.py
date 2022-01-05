@@ -102,18 +102,19 @@ class Dataset(data.Dataset):
                 X (torch.tensor): two RGB stereo pairs of images stacked together, one source image pair and one target
                                   image pair (Bx12xHxW).
                 D (torch.tensor): two disparity images, computed from the two pairs of stereo images (Bx2xHW).
-                data_id (string): the id for the daa sample on the form pathname_runidsrc_poseidsrc_runidtrg_poseidtrg.
+                sample_id (string): the id for the data sample on the form
+                                    pathname_runidsrc_poseidsrc_runidtrg_poseidtrg.
                 y_se3 (torch.tensor): the relative pose from the source to target, T_trg_src, given as a 4x4 matrix
                                       (Bx4x4).
                 y_log (torch.tensor): the relative pose from the source to target given as a length 6 vector (Bx6).
         """
 
         # Select sample
-        data_id = self.list_ids[index]
+        sample_id = self.list_ids[index]
 
         # Get the path name, run id, and pose id for the sample. Combining the run and pose id gives us the id of
         # a given vertex in the pose graph that the data was sampled from.
-        data_info = re.findall('\w+', data_id)
+        data_info = re.findall('\w+', sample_id)
         path_name = data_info[0]
         run_ids = data_info[1::2]
         pose_ids = data_info[2::2]
@@ -135,10 +136,10 @@ class Dataset(data.Dataset):
             self.add_disparity(D, 1, path_name, run_ids[1], pose_ids[1]) # Target disparity
 
         # Pose transforms
-        y_se3 = self.labels_se3[data_id]
-        y_log = self.labels_log[data_id]
+        y_se3 = self.labels_se3[sample_id]
+        y_log = self.labels_log[sample_id]
 
-        return X, D, data_id, y_se3, y_log
+        return X, D, sample_id, y_se3, y_log
 
     def add_images(self, X, ind, path_name, run_id, pose_id, i, j, normalize_img):
         """

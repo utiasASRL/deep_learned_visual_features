@@ -86,12 +86,12 @@ def build_random_loc_dataset(data_path, path_names, runs, num_samples, temporal_
                         
     return all_ids, labels_se3, labels_log
 
-def build_sequential_loc_dataset(data_path, path_name, base_run, compare_runs, temporal_length):
+def build_sequential_loc_dataset(data_path, path_name, map_run_id, compare_runs, temporal_length):
     """
         Build a dataset that localizes all the vertices of one or more runs in the pose graph to the vertices on one
-        base run. I.e. we localize one or more repeat runs to one run that we choose as the teach (or map) run. We get
-        relative pose transforms for each localized vertex in the order that the vertices were created when driving the
-        robot during data collection.
+        map (or teach) run. I.e. we localize one or more live (or repeat) runs to one run that we choose as the map
+        run. We get relative pose transforms for each localized vertex in the order that the vertices were created when
+        driving the robot during data collection.
 
         Record the pose transforms as 4x4 matrices and the 6 DOF vector equivalents. The pose from vertex, v1, to
         vertex, v2, is given as T_v2_v1. Create sample ids from the vertex ids. A vertex id consists of the id of the
@@ -102,8 +102,8 @@ def build_sequential_loc_dataset(data_path, path_name, base_run, compare_runs, t
         Args:
             data_path (string): path to where the different runs of data are stored.
             path_name (string): name given to the path that the pose graph represents.
-            base_run (int): the run to localize to, i.e. compute the relative pose to vertices on this run.
-            compare_runs (list[int]): the runs we localize to the base_run, i.e. compute relative pose from vertices on
+            map_run_id (int): id of the run to localize to, i.e. compute the relative pose to vertices on this run.
+            compare_runs (list[int]): the runs we localize to the map run, i.e. compute relative pose from vertices on
                                       these runs.
             temporal_length (int): we can 'walk along' the pose graph to pair vertices that har further apart (i.e.
                                    not the closest pair). We set a fixed topological distance/steps we move away
@@ -116,11 +116,11 @@ def build_sequential_loc_dataset(data_path, path_name, base_run, compare_runs, t
     """
 
     print(f'Sequential dataset: {path_name}')
-    print(f'Base (teach) run: {base_run}')
-    print(f'Repeat runs to localize: {compare_runs}')
+    print(f'Map (teach) run: {map_run_id}')
+    print(f'Live (repeat) runs to localize: {compare_runs}')
 
     data_dir = data_path + 'path_' + path_name + '_processed'
-    pose_graph = build_sub_graph([base_run] + compare_runs, data_dir)
+    pose_graph = build_sub_graph([map_run_id] + compare_runs, data_dir)
 
-    return sequential_sample(path_name, pose_graph, base_run, compare_runs, temporal_length)
+    return sequential_sample(path_name, pose_graph, map_run_id, compare_runs, temporal_length)
 

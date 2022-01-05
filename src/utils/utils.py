@@ -27,7 +27,7 @@ class MELData():
         self.paths = []
         self.test_labels_se3 = {}
         self.test_labels_log = {}
-        self.test_loc_ids = {}
+        self.test_ids = {}
 
 def compute_mean_std(mel_data, data_dir, height, width):
     """
