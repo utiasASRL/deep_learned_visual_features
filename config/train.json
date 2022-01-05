@@ -1,7 +1,7 @@
 {
   "home_path": "/home/path",
 
-  "experiment_name": "train_model",
+  "experiment_name": "train_model_v1",
   "dataset_name": "multiseason_v1",
   "checkpoint_name": "network_v1",
 

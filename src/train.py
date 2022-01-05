@@ -235,7 +235,7 @@ def main(config):
         Args:
             config (dict): configurations for training the network.
     """
-    results_path = f"{config['home_path']}/results/{config['experiment_name']}"
+    results_path = f"{config['home_path']}/results/{config['experiment_name']}/"
     checkpoints_path = f"{config['home_path']}/networks"
     data_path = f"{config['home_path']}/data"
     datasets_path = f"{config['home_path']}/datasets"
@@ -250,12 +250,12 @@ def main(config):
         os.makedirs(results_path)
 
     # Print outputs to files
-    # orig_stdout = sys.stdout
-    # fl = open(f'{results_path}out_train.txt', 'w')
-    # sys.stdout = fl
-    # orig_stderr = sys.stderr
-    # fe = open(f'{results_path}err_train.txt', 'w')
-    # sys.stderr = fe
+    orig_stdout = sys.stdout
+    fl = open(f'{results_path}out_train.txt', 'w')
+    sys.stdout = fl
+    orig_stderr = sys.stderr
+    fe = open(f'{results_path}err_train.txt', 'w')
+    sys.stderr = fe
 
     # Record the config settings.
     print(f'\nTraining parameter configurations: \n{config}\n')
@@ -329,10 +329,10 @@ def main(config):
           min_validation_loss, train_stats, validation_stats, config, results_path, checkpoint_path)
 
     # Stop writing outputs to file.
-    # sys.stdout = orig_stdout
-    # fl.close()
-    # sys.stderr = orig_stderr
-    # fe.close()
+    sys.stdout = orig_stdout
+    fl.close()
+    sys.stderr = orig_stderr
+    fe.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
