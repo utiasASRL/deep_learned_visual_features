@@ -20,7 +20,7 @@ def build_sub_graph(runs, data_dir):
         Returns:
             graph (Graph): a pose graph built from the runs that was provided.
     """
-    teach_file = data_dir + "/run_000000/transforms_temporal.txt"
+    teach_file = f'{data_dir}/run_000000/transforms_temporal.txt'
     repeat_files = []
 
     for run in runs:
@@ -74,7 +74,7 @@ def build_random_loc_dataset(data_path, path_names, runs, num_samples, temporal_
         print(f'Sample from runs: {runs[path_name]}')
         print(f'Collect {num_samples_path} samples \n')
 
-        data_dir = f'{data_path}{path_name}'
+        data_dir = f'{data_path}/{path_name}'
         pose_graph = build_sub_graph(runs[path_name], data_dir)
 
         path_ids, path_labels_se3, path_labels_log = random_sample(path_name, pose_graph, runs[path_name],
@@ -121,7 +121,7 @@ def build_sequential_loc_dataset(data_path, path_name, map_run_id, live_run_ids,
     print(f'Map (teach) run: {map_run_id}')
     print(f'Live (repeat) runs to localize: {live_run_ids} \n')
 
-    data_dir = f'{data_path}{path_name}'
+    data_dir = f'{data_path}/{path_name}'
     pose_graph = build_sub_graph([map_run_id] + live_run_ids, data_dir)
 
     return sequential_sample(path_name, pose_graph, map_run_id, live_run_ids, temporal_length)

@@ -4,7 +4,7 @@
   "dataset_name": "multiseason_v1",
   "num_train_samples": 100000,
   "num_validation_samples": 20000,
-  "max_temporal_len": 1,
+  "max_temporal_len": 3,
 
   "dataset":{
       "height": 384,
