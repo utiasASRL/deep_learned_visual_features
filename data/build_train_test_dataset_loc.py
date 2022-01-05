@@ -22,7 +22,7 @@ def main(config):
     # Directory to store outputs to stdout/stderr.
     results_path = f"{config['home_path']}/results/dataset/{config['dataset_name']}/"
     # Directory where the data is stored (images, transforms text files).
-    data_path = f"{config['data_path']}/"
+    data_path = f"{config['data_path']}"
     # File to store the generated training dataset.
     dataset_path = f"{config['home_path']}/datasets/{config['dataset_name']}.pickle"
 
@@ -31,11 +31,10 @@ def main(config):
 
     # Print outputs to files
     orig_stdout = sys.stdout
-    out_fl = 'out_data.txt'
-    fl = open(results_path + out_fl, 'w')
+    fl = open(f'{results_path}out_data.txt', 'w')
     sys.stdout = fl
     orig_stderr = sys.stderr
-    fe = open(results_path + 'err.txt', 'w')
+    fe = open(f'{results_path}err_data.txt', 'w')
     sys.stderr = fe
 
     # Set up device, using GPU 0

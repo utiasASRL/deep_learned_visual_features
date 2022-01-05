@@ -1,7 +1,9 @@
 {
-  "home_path": "/home/mgr",
+  "home_path": "/home/path",
+
   "experiment_name": "train_model",
-  "device_ids": [0],
+  "dataset_name": "multiseason_v1",
+  "checkpoint_name": "network_v1",
 
   "training": {
     "start_svd": 2,
@@ -10,10 +12,12 @@
   },
 
   "network": {
-    "name": "unet_v1",
-    "n_channels": 3,
-    "n_classes": 1,
-    "layer_size": 16,
+    "num_channels": 3,
+    "num_classes": 1,
+    "layer_size": 16
+  },
+
+  "pipeline": {
     "window_h": 16,
     "window_w": 16,
     "dense_matching": true
@@ -31,7 +35,7 @@
   "data_loader": {
     "batch_size": 3,
     "num_workers": 3,
-    "shuffle": true
+    "shuffle": false
   },
 
   "stereo": {
@@ -42,16 +46,13 @@
   },
 
   "dataset": {
-    "name": "multiseason_v1",
-    "args": {
-      "height": 384,
-      "width": 512,
-      "crop_height": 384,
-      "crop_width": 512,
-      "use_normalization": false,
-      "use_crop": false,
-      "use_disparity": true
-    }
+    "height": 384,
+    "width": 512,
+    "crop_height": 384,
+    "crop_width": 512,
+    "use_normalization": false,
+    "use_crop": false,
+    "use_disparity": true
   },
 
   "optimizer": {
@@ -65,10 +66,12 @@
     "gamma": 1.0
   },
 
-  "losses": {
-    "loss_terms": ["pose", "keypoint_plane"],
-
-    "loss_weights": {
+  "loss": {
+    "types": [
+      "pose_plane",
+      "keypoint_plane"
+    ],
+    "weights": {
       "translation": 1.0,
       "rotation": 10.0,
       "translation_x": 1.0,

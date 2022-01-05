@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.networks.svd_block import SVDBlock
+from src.model.svd_block import SVDBlock
 from src.utils.lie_algebra import se3_log, se3_inv
 from src.utils.stereo_camera_model import StereoCameraModel
 
@@ -13,14 +13,12 @@ class RANSACBlock(nn.Module):
         Use RANSAC for outlier rejection during inference.
     """
 
-    def __init__(self, inlier_threshold, error_tolerance, num_iterations, T_s_v):
+    def __init__(self, config, T_s_v):
         """
             Initialize RANSAC by setting values used to determine how many iterations to run.
 
             Args:
-                inlier_threshold (float): the minimum number of inliers we want, quit RANSAC when this is achieved.
-                error_tolerance (float): error must be smaller than or equal to threshold to this be considered inlier.
-                num_iterations (float): maximum number of iterations to run before giving up.
+                config (dict): configuration parameters.
                 T_s_v (torch.tensor): 4x4 transformation matrix providing the transform from the vehicle frame to the
                                       sensor frame.
         """
@@ -32,11 +30,18 @@ class RANSACBlock(nn.Module):
         self.stereo_cam = StereoCameraModel(config['stereo']['cu'], config['stereo']['cv'],
                                             config['stereo']['f'], config['stereo']['b'])
 
-        self.inlier_threshold = inlier_threshold
-        self.error_tolerance = error_tolerance
-        self.num_iterations = num_iterations
+        # The minimum number of inliers we want, quit RANSAC when this is achieved.
+        self.inlier_threshold = config['outlier_rejection']['inlier_threshold']
 
-        self.svd = SVDBlock()
+        # Error must be smaller than or equal to threshold to this be considered inlier.
+        dim_key = config['outlier_rejection']['dim'][0]
+        self.error_tolerance = config['outlier_rejection']['error_tolerance'][dim_key]
+
+        # Maximum number of iterations to run before giving up.
+        self.num_iterations =  config['outlier_rejection']['num_iterations']
+
+        # SVD is used to estimate pose.
+        self.svd = SVDBlock(T_s_v)
 
     def forward(self, keypoints_3D_src, keypoints_3D_trg, keypoints_2D_trg, valid_pts_src, valid_pts_trg, weights, dim):
         """

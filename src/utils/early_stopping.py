@@ -5,7 +5,7 @@ class EarlyStopping:
     """Based on https://github.com/Bjarten/early-stopping-pytorch/blob/master/pytorchtools.py
        Early stops the training if validation loss doesn't improve after a given patience.
     """
-    def __init__(self, patience=7, loss_min=10e9, epoch_min):
+    def __init__(self, patience, loss_min, epoch_min):
         """
         Initialize by setting the chosen patience and set the minimum loss.
 

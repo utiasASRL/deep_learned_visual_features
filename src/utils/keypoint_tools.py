@@ -103,6 +103,6 @@ def get_keypoint_info(kpt_2D, scores_map, descriptors_map, disparity, stereo_cam
 
     kpt_scores = get_scores(scores_map, kpt_2D_norm)
 
-    kpt_3D, valid = stereo_cam.inverse_camera_model(kpt_2D, disparity, source)
+    kpt_3D, valid = stereo_cam.inverse_camera_model(kpt_2D, disparity)
 
     return kpt_3D, valid, kpt_desc_norm, kpt_scores

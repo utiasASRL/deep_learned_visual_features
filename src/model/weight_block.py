@@ -2,12 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class SVDWeightBlock(nn.Module):
+class WeightBlock(nn.Module):
     """
         Computes the weights for matched points pairs that will be used when computing the pose.
     """
     def __init__(self):
-        super(SVDWeightBlock, self).__init__()
+        super(WeightBlock, self).__init__()
 
     def forward(self, kpt_desc_norm_src, kpt_desc_norm_pseudo, kpt_scores_src, kpt_scores_pseudo):
         """

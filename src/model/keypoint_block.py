@@ -1,7 +1,6 @@
-
 import torch
 import torch.nn as nn
-import torch.nn.functional as FS
+import torch.nn.functional as F
 
 class KeypointBlock(nn.Module):
     """
@@ -46,7 +45,7 @@ class KeypointBlock(nn.Module):
 
         v_windows = F.unfold(self.v_coords.expand(batch_size, 1, height, width),
                              kernel_size=(self.window_height, self.window_width),
-                             stride=(self.window_h, self.window_w))  # B x n_window_elements x n_windows
+                             stride=(self.window_height, self.window_width))  # B x n_window_elements x n_windows
         u_windows = F.unfold(self.u_coords.expand(batch_size, 1, height, width),
                              kernel_size=(self.window_height, self.window_width),
                              stride=(self.window_height, self.window_width))

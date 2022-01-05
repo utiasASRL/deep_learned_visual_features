@@ -2,14 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.networks.keypoint_block import KeypointBlock
-from src.networks.matcher_block import MatcherBlock
-from src.networks.ransac_block import RANSACBlock
-from src.networks.svd_block import SVDBlock
-from src.networks.unet import UNet, UNetLarge, UNetVGG16
-from src.networks.weight_block import SVDWeightBlock
-from src.utils.keypoint_tools import get_keypoint_info, get_norm_descriptors, normalize_coords
-from src.utils.lie_algebra import se3_inv, se3_log, se3_exp
+from src.model.keypoint_block import KeypointBlock
+from src.model.matcher_block import MatcherBlock
+from src.model.ransac_block import RANSACBlock
+from src.model.svd_block import SVDBlock
+from src.model.unet import UNet
+from src.model.weight_block import WeightBlock
+from src.utils.keypoint_tools import get_keypoint_info, get_norm_descriptors
+from src.utils.lie_algebra import se3_inv, se3_log
 from src.utils.stereo_camera_model import StereoCameraModel
 
 class Pipeline(nn.Module):
@@ -30,9 +30,9 @@ class Pipeline(nn.Module):
 
         self.config = config
 
-        self.window_h = config['network']['window_h']
-        self.window_w = config['network']['window_w']
-        self.dense_matching = config['network']['dense_matching']
+        self.window_h = config['pipeline']['window_h']
+        self.window_w = config['pipeline']['window_w']
+        self.dense_matching = config['pipeline']['dense_matching']
 
         # Image height and width
         self.height = config['dataset']['height']
@@ -50,12 +50,7 @@ class Pipeline(nn.Module):
         self.matcher_block = MatcherBlock()
         self.weight_block = WeightBlock()
         self.svd_block = SVDBlock(self.T_s_v)
-
-        dim_key = self.config['outlier_rejection']['dim'][0]
-        self.ransac_block = RANSACBlock(config['outlier_rejection']['inlier_threshold'],
-                                        config['outlier_rejection']['error_tolerance'][dim_key],
-                                        config['outlier_rejection']['num_iterations'],
-                                        self.T_s_v)
+        self.ransac_block = RANSACBlock(config, self.T_s_v)
 
         self.stereo_cam = StereoCameraModel(config['stereo']['cu'], config['stereo']['cv'],
                                             config['stereo']['f'], config['stereo']['b'])
@@ -107,8 +102,8 @@ class Pipeline(nn.Module):
         # Variables to store the loss
         losses = {'total': torch.zeros(1).cuda()}
         mse_loss_fn = torch.nn.MSELoss()
-        loss_weights = self.config['loss_weights']
-
+        loss_types = self.config['loss']['types']
+        loss_weights = self.config['loss']['weights']
 
         ################################################################################################################
         #  Get keypoints and associated info for the source and target frames
@@ -128,22 +123,20 @@ class Pipeline(nn.Module):
                                                                                          scores_src,
                                                                                          descriptors_src,
                                                                                          disparities[:, 0, :, :],
-                                                                                         self.stereo_cam,
-                                                                                         'init')
+                                                                                         self.stereo_cam)
 
         kpt_3D_trg, kpt_valid_trg, kpt_desc_norm_trg, kpt_scores_trg = get_keypoint_info(kpt_2D_trg,
                                                                                          scores_trg,
                                                                                          descriptors_trg,
                                                                                          disparities[:, 0, :, :],
-                                                                                         self.stereo_cam,
-                                                                                         'init')
+                                                                                         self.stereo_cam)
 
 
         ################################################################################################################
         # Match keypoints from the source and target frames
         ################################################################################################################
 
-        if self.config['network']['args']['dense_matching']:
+        if self.config['pipeline']['dense_matching']:
 
             # Match against descriptors for each pixel in the target.
             desc_norm_trg_dense = get_norm_descriptors(descriptors_trg)
@@ -163,8 +156,7 @@ class Pipeline(nn.Module):
                                                                                                    scores_trg,
                                                                                                    descriptors_trg,
                                                                                                    disparities[:,1,:,:],
-                                                                                                   self.stereo_cam,
-                                                                                                   'pseudo')
+                                                                                                   self.stereo_cam)
 
         # Compute the weight associated with each matched point pair. They will be used when computing the pose.
         weights = self.weight_block(kpt_desc_norm_src, kpt_desc_norm_pseudo, kpt_scores_src, kpt_scores_pseudo)
@@ -245,17 +237,17 @@ class Pipeline(nn.Module):
         ################################################################################################################
 
         # We can choose to use just the keypoint loss and not compute pose for the first few epochs.
-        if epoch >= self.config['start_svd']:
+        if epoch >= self.config['training']['start_svd']:
 
             #  Check that we have enough inliers for all example sin the bach to compute pose.
-            valid = kpt_valid[src_ind] & valid_pseudo & valid_inliers
+            valid = kpt_valid_src & kpt_valid_pseudo & valid_inliers
 
             num_inliers = torch.sum(valid.squeeze(1), dim=1)[0]
             if torch.any(num_inliers < 6):
                 raise RuntimeError('Too few inliers to compute pose: {}'.format(num_inliers))
 
             weights[valid == 0] = 0.0
-            T_trg_src = self.svd_block(kpt_3D_src, kpt_3D_pseudo, svd_weights)
+            T_trg_src = self.svd_block(kpt_3D_src, kpt_3D_pseudo, weights)
 
 
         ################################################################################################################
@@ -281,7 +273,7 @@ class Pipeline(nn.Module):
             losses['total'] += keypoint_loss
 
         if ('keypoint_plane' in loss_types):
-            valid = valid_pseudo & kpt_valid_src & valid_inliers   # B x 1 x N
+            valid = kpt_valid_pseudo & kpt_valid_src & valid_inliers   # B x 1 x N
             valid = valid.expand(batch_size, 2, valid.size(2))     # B x 4 x N
             kpt_3D_pseudo_gt_vehicle = T_trg_src_inl_gt.bmm(se3_inv(T_s_v).bmm(kpt_3D_src))  # Bx4xN
             kpt_3D_pseudo_vehicle = se3_inv(T_s_v).bmm(kpt_3D_pseudo)
@@ -292,7 +284,7 @@ class Pipeline(nn.Module):
             losses['total'] += keypoint_loss
 
         # Pose loss either using the full 6DOF pose or a subset (x, y, heading).
-        if epoch >= self.config['start_svd']:
+        if epoch >= self.config['training']['start_svd']:
             if ('pose' in loss_types):
                 T_trg_src_gt = pose_se3
                 rot_loss, trans_loss = self.pose_loss(T_trg_src_gt, T_trg_src, mse_loss_fn)
@@ -320,7 +312,7 @@ class Pipeline(nn.Module):
         # Return the estimated pose and the loss
         ################################################################################################################
 
-        if epoch >= self.config['start_svd']:
+        if epoch >= self.config['training']['start_svd']:
             return losses, T_trg_src
         else:
             # Haven't computed the pose yet, just the keypoint loss.
