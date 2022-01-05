@@ -15,6 +15,8 @@ from torch.utils import data
 from data.build_datasets import build_random_loc_dataset, build_sequential_loc_dataset
 from src.utils.utils import MELData, compute_mean_std
 
+torch.backends.cudnn.benchmark = True
+
 def main(config):
 
     # Directory to store outputs to stdout/stderr.
@@ -22,19 +24,23 @@ def main(config):
     # Directory where the data is stored (images, transforms text files).
     data_path = f"{config['data_path']}/"
     # File to store the generated training dataset.
-    dataset_path = f"{config['home_path']}datasets/{config['dataset_name']}.pickle"
+    dataset_path = f"{config['home_path']}/datasets/{config['dataset_name']}.pickle"
 
     if not os.path.exists(results_path):
         os.makedirs(results_path)
 
     # Print outputs to files
-    orig_stdout = sys.stdout
-    out_fl = 'out_data.txt'
-    fl = open(results_path + out_fl, 'w')
-    sys.stdout = fl
-    orig_stderr = sys.stderr
-    fe = open(results_path + 'err.txt', 'w')
-    sys.stderr = fe
+    # orig_stdout = sys.stdout
+    # out_fl = 'out_data.txt'
+    # fl = open(results_path + out_fl, 'w')
+    # sys.stdout = fl
+    # orig_stderr = sys.stderr
+    # fe = open(results_path + 'err.txt', 'w')
+    # sys.stderr = fe
+
+    # Set up device, using GPU 0
+    device = torch.device('cuda:{}'.format(0) if torch.cuda.device_count() > 0 else 'cpu')
+    torch.cuda.set_device(0)
 
     start = time.time()
 
@@ -44,7 +50,7 @@ def main(config):
 
     num_samples_valid = {}
     for path_name in config['test_paths']:
-        num_samples_valid[path_name] = math.floor(config['sampling_ratios_valid'][path_name] * config['num_valid_samples'])  
+        num_samples_valid[path_name] = math.floor(config['sampling_ratios_valid'][path_name] * config['num_validation_samples'])
 
     # Training and validation data
     train_ids, train_labels_se3, train_labels_log = build_random_loc_dataset(data_path,
@@ -73,10 +79,10 @@ def main(config):
     with open(dataset_path, 'wb') as f:
         pickle.dump(mel_data, f, pickle.HIGHEST_PROTOCOL)
 
-    print(f'Training data size: {len(train_ids)}')
-    print(f'Validation data size: {len(valid_ids)}')
+    print(f'\nTraining data size: {len(train_ids)}')
+    print(f'Validation data size: {len(valid_ids)}\n')
     print('Saved training and validation dataset', flush=True)
-    print(f'Generating training and validation datasets took {time.time() - start} s')
+    print(f'Generating training and validation datasets took {time.time() - start} s\n')
 
     # Compute mean and std_dev for the training set to use for input normalization if desirable.
     mean, std_dev = compute_mean_std(mel_data, data_path, config['dataset']['height'], config['dataset']['width'])
@@ -113,14 +119,14 @@ def main(config):
     with open(dataset_path, 'wb') as f:
         pickle.dump(mel_data, f, pickle.HIGHEST_PROTOCOL)
 
-    print('Saved test dataset', flush=True)
+    print('\nSaved test dataset', flush=True)
     print(f'Generating full training, validation, and test dataset took {time.time() - start} s')
 
     # Stop writing outputs to files.
-    sys.stdout = orig_stdout
-    fl.close()
-    sys.stderr = orig_stderr
-    fe.close()
+    # sys.stdout = orig_stdout
+    # fl.close()
+    # sys.stderr = orig_stderr
+    # fe.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

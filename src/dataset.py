@@ -122,11 +122,13 @@ class Dataset(data.Dataset):
         self.im_height = self.crop_height if self.use_crop else self.height
         self.im_width = self.crop_width if self.use_crop else self.width
 
-        # Indices to use for cropping the images
-        i, j = 0, 0
+
+        i, j = 0, 0                     # Indices to use for cropping the images.
+        num_frames = 2                  # One source and one target frame.
+        num_channels = num_frames * 6   # Two RGB stereo pairs, 2 * 2 * 3.
 
         X = torch.zeros(num_channels, self.im_height, self.im_width)   # Images
-        D = torch.zeros(num_frames_use, self.im_height, self.im_width) # Disparity
+        D = torch.zeros(num_frames, self.im_height, self.im_width)              # Disparity
 
         self.add_images(X, 0, path_name, run_ids[0], pose_ids[0], i, j, self.use_normalization) # Source image
         self.add_images(X, 1, path_name, run_ids[1], pose_ids[1], i, j, self.use_normalization) # Target image

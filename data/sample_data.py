@@ -27,7 +27,7 @@ def random_sample(path_name, pose_graph, runs, num_samples, max_temporal_length)
                                        form the start vertex.
 
         Returns:
-             samples (list[string]): list of all the the sample ids.
+             samples (list[string]): list of all the sample ids.
              labels_se3 (dict): dictionary mapping sample id to pose transform 4x4 matrix provided as a torch.Tensor.
              labels_log (dict): dictionary mapping sample id to pose transform 6 DOF vector provided as a torch.Tensor.
     """
@@ -90,7 +90,7 @@ def random_sample(path_name, pose_graph, runs, num_samples, max_temporal_length)
         if not sample_id in samples:
 
             T_other_live = pose_graph.get_transform(live_id, other_id) 
-            log_other_live = torch.tensor(Transform.LogMap(T_other_live), dtype=torch.float)
+            log_other_live = Transform.LogMap(T_other_live)
 
             samples.append(sample_id)
             labels_se3[sample_id] = torch.tensor(T_other_live.matrix, dtype=torch.float)
@@ -150,8 +150,11 @@ def sequential_sample(path_name, pose_graph, map_run_id, live_runs, temporal_len
         if live_vertex is None:
             continue
         
-        if (live_id[0] in compare_runs) and (live_id[0] != map_run_id):
+        if (live_id[0] in live_runs) and (live_id[0] != map_run_id):
 
+            # Vertices are connected via the teach run 0 in the pose graph, which adds one to the distance count between
+            # them, i.e. if run5_pose50 is localized directly to run3_pose54, we get r5_p50 -> r0_p52 -> r3_p54 so a
+            # radius of 2 instead of 1.
             radius = temporal_length + 1
             max_radius = 8
             map_pose_id = -1
@@ -207,7 +210,7 @@ def sequential_sample(path_name, pose_graph, map_run_id, live_runs, temporal_len
             if not sample_id in samples:
                 
                 T_map_live = pose_graph.get_transform(live_id, map_id)
-                log_map_live = torch.tensor(Transform.LogMap(T_map_live), dtype=torch.float)
+                log_map_live = Transform.LogMap(T_map_live)
 
                 samples.append(sample_id)
                 labels_se3[sample_id] = torch.tensor(T_map_live.matrix, dtype=torch.float)
