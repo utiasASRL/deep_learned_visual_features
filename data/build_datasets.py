@@ -72,7 +72,7 @@ def build_random_loc_dataset(data_path, path_names, runs, num_samples, temporal_
 
         print(f'Sample from path {path_name} with runs {runs[path_name]} and {num_samples_path} samples')
 
-        data_dir = data_path + 'path_' + path_name + '_processed'
+        data_dir = f'{data_path}path_{path_name}_processed'
         pose_graph = build_sub_graph(runs[path_name], data_dir)
 
         path_ids, path_labels_se3, path_labels_log = random_sample(path_name, pose_graph, runs[path_name],
@@ -119,7 +119,7 @@ def build_sequential_loc_dataset(data_path, path_name, map_run_id, compare_runs,
     print(f'Map (teach) run: {map_run_id}')
     print(f'Live (repeat) runs to localize: {compare_runs}')
 
-    data_dir = data_path + 'path_' + path_name + '_processed'
+    data_dir = f'{data_path}path_{path_name}_processed'
     pose_graph = build_sub_graph([map_run_id] + compare_runs, data_dir)
 
     return sequential_sample(path_name, pose_graph, map_run_id, compare_runs, temporal_length)
