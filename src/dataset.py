@@ -178,7 +178,7 @@ class Dataset(data.Dataset):
                 normalize_img (bool): whether to normalize the image.
         """
         # Generate the image file name based on the id of the vertex the image belongs to.
-        img_file = f"{self.data_dir}path_{path_name}_processed/run_{run_id.zfill(6)}/" \
+        img_file = f"{self.data_dir}{path_name}/run_{run_id.zfill(6)}/" \
                    f"images/{loc}/{pose_id.zfill(6)}.png"
 
         img = Image.open(img_file)
@@ -231,9 +231,9 @@ class Dataset(data.Dataset):
                 pose_id (int): id of the pose along the given run that the images are taken from.
         """
         # Generate the image file names based on the id of the vertex the image belongs to.
-        img_file_left = f"{self.data_dir}path_{path_name}_processed/run_{run_id.zfill(6)}/images/" \
+        img_file_left = f"{self.data_dir}{path_name}/run_{run_id.zfill(6)}/images/" \
                         f"left/{pose_id.zfill(6)}.png"
-        img_file_right = f"{self.data_dir}path_{path_name}_processed/run_{run_id.zfill(6)}/images/" \
+        img_file_right = f"{self.data_dir}{path_name}/run_{run_id.zfill(6)}/images/" \
                         f"right/{pose_id.zfill(6)}.png"
 
         left_img = np.uint8(cv2.imread(img_file_left, 0))

@@ -30,13 +30,13 @@ def main(config):
         os.makedirs(results_path)
 
     # Print outputs to files
-    # orig_stdout = sys.stdout
-    # out_fl = 'out_data.txt'
-    # fl = open(results_path + out_fl, 'w')
-    # sys.stdout = fl
-    # orig_stderr = sys.stderr
-    # fe = open(results_path + 'err.txt', 'w')
-    # sys.stderr = fe
+    orig_stdout = sys.stdout
+    out_fl = 'out_data.txt'
+    fl = open(results_path + out_fl, 'w')
+    sys.stdout = fl
+    orig_stderr = sys.stderr
+    fe = open(results_path + 'err.txt', 'w')
+    sys.stderr = fe
 
     # Set up device, using GPU 0
     device = torch.device('cuda:{}'.format(0) if torch.cuda.device_count() > 0 else 'cpu')
@@ -123,10 +123,10 @@ def main(config):
     print(f'Generating full training, validation, and test dataset took {time.time() - start} s')
 
     # Stop writing outputs to files.
-    # sys.stdout = orig_stdout
-    # fl.close()
-    # sys.stderr = orig_stderr
-    # fe.close()
+    sys.stdout = orig_stdout
+    fl.close()
+    sys.stderr = orig_stderr
+    fe.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
