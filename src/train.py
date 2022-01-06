@@ -110,7 +110,7 @@ def execute_epoch(pipeline, net, data_loader, stats, epoch, mode, config, dof, o
         print(f'Average {mode} loss, {loss_type}: {epoch_losses[loss_type]:.6f}')
 
     # Only store and print pose errors if we have started computing pose (and are not just computing keypoint loss).
-    if epoch >= config['training']['start_svd']:
+    if epoch >= config['training']['start_pose_estimation']:
 
         # RMSE for each pose DOF.
         errors[:, 3:6] = np.rad2deg(errors[:, 3:6])
@@ -210,7 +210,7 @@ def train(pipeline, net, optimizer, scheduler, train_loader, validation_loader, 
 
         # Only start checking the loss after we start computing the pose loss. Sometimes we only compute keypoint loss
         # for the first few epochs.
-        if epoch >= config['training']['start_svd']:
+        if epoch >= config['training']['start_pose_estimation']:
 
             # Plot the losses during training and validations.
             plot_epoch_statistics(train_stats, validation_stats, plotting, dof)
@@ -322,6 +322,8 @@ def main(config):
         min_validation_loss = checkpoint['val_loss'] if 'val_loss' in checkpoint.keys() else 10e9
         train_stats = checkpoint['train_stats'] if 'train_stats' in checkpoint.keys() else Statistics()
         validation_stats = checkpoint['valid_stats'] if 'valid_stats' in checkpoint.keys() else Statistics()
+    else:
+        os.makedirs(checkpoint_path)
 
     net.cuda()
 

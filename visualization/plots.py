@@ -87,83 +87,73 @@ class Plotting:
             plt.savefig(f'{self.results_dir}error_epoch_{dof_str[dof_index]}.pdf', format='pdf')
             plt.close()
 
-    def plot_outputs(self, outputs, outputs_tr, targets, targets_tr, method, epoch, base_id, path_type, ylim=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0]):
+    def plot_outputs(self, outputs_se3, targets_se3, path_name, map_run_id, dof):
         """
-            Plot the average error for each specified pose DOF for each epoch for training and validation.
+            Plot estimated and target poses. Plot each of the estimated DOF separately.
 
             Args:
-                epoch_error_train (dict): the average pose errors for each DOF for each epoch.
-                epoch_error_valid (dict): the average pose errors for each DOF for each epoch.
+                outputs_se3 (dict): a map from the live run id to the estimated poses for all localized vertices on
+                                    that run provided as 4x4 numpy arrays in a list.
+                targets_se3 (dict): a map from the live run id to the ground truth target poses for all localized
+                                    vertices on that run provided as 4x4 numpy arrays in a list.
+                path_name (string): name of the path.
+                map_run_id (int): the id of the run used as the map, i.e. which all the other runs are localized to.
                 dof (list[int]): indices of the DOF to plot.
         """
+        # Store the plots of all runs localized to the map run in the same directory.
+        directory = f'{self.results_dir}/{path_name}/map_run_{map_run_id}'
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
-        dof = ['x', 'y', 'z', 'rot_x', 'rot_y', 'rot_z'] if outputs[list(outputs)[0]].shape[1] == 6 else ['x', 'y', 'theta']
+        dof_str = ['x', 'y', 'z', 'roll', 'pitch', 'yaw']
 
-        for run in outputs.keys():
+        for live_run_id in outputs_se3.keys():
 
-            directory = self.results_dir + method + '/' + path_type +  '/run_' + str(run)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
+            outputs_log
 
-            for j in range(len(dof)):
+            for dof_ind in dof:
 
-                targets_plot = np.rad2deg(targets[run][:, j]) if (dof[j] in ['theta', 'rot_x', 'rot_y', 'rot_z']) else np.stack(targets_tr[run], axis=0)[:, j, 3]
-                outputs_plot = np.rad2deg(outputs[run][:, j]) if (dof[j] in ['theta', 'rot_x', 'rot_y', 'rot_z']) else np.stack(outputs_tr[run], axis=0)[:, j, 3]
+                # Convert to degrees if rotation.
+                targets_plot = np.rad2deg(targets_log[run][:, j]) if dof_ind > 2 else targets_log[run][:, j]
+                outputs_plot = np.rad2deg(outputs_log[run][:, j]) if dof_ind > 2 else outputs_log[run][:, j]
 
                 f = plt.figure(figsize=(18,6))
                 f.tight_layout(rect=[0, 0.03, 1, 0.95])
                 p1 = plt.plot(targets_plot, 'C1')
                 p2 = plt.plot(outputs_plot, 'C0')
-                plt.legend((p1[0], p2[0]), ('target', 'predicted'))
-                if ylim[j] > 0.0:
-                    plt.ylim([-ylim[j], ylim[j]])
-                plt.ylabel(dof[j])
+                plt.legend((p1[0], p2[0]), ('ground truth', 'estimated'))
+
+                ylabel = 'Degrees' if j > 2 else 'Metres'
+                plt.ylabel(ylabel)
                 plt.xlabel('Vertex')
-                plt.title(dof[j] + ' - ' + method)
-                #plt.savefig(directory + '/' + dof[j] + '_base_' + str(base_ids[run])  + '_epoch_' + str(epoch) + '.png', format='png')
-                plt.savefig(directory + '/' + dof[j] + '_base_' + str(base_id)  + '.png', format='png')
+                plt.title(f'Error - {dof_str[j]}')
+
+                plt.savefig(f'{directory}/pose_{dof_str[j]}_live_run_{live_run_id}.png', format='png')
+                plt.savefig(f'{directory}/pose_{dof_str[j]}_live_run_{live_run_id}.pdf', format='pdf')
                 plt.close()
 
-                f = plt.figure(figsize=(18,6))
-                f.tight_layout(rect=[0, 0.03, 1, 0.95])
-                plt.plot(targets_plot - outputs_plot, 'C3')
-                if ylim[j] > 0.0:
-                    plt.ylim([-ylim[j], ylim[j]])
-                plt.ylabel('Difference in ' + dof[j])
-                plt.xlabel('Vertex')
-                plt.title(dof[j] + ' - ' + method)
-                #plt.savefig(directory + '/' + dof[j] + '_diff_base_' + str(base_ids[run])  + '_epoch_' + str(epoch) + '.png', format='png')
-                plt.savefig(directory + '/' + dof[j] + '_diff_base_' + str(base_id) + '.png', format='png')
-                plt.close()
-
-
-    def plot_cumulative_err(self, errors, error_type, unit, path_name, run_id, base_id):
-
-        directory = self.results_dir + path_name + '/' + path_type + '/run_' + str(run_id)
-        xlim = [0.0, 1.0] if error_type == 'translation' else [0.0, 3.0]
-
-        # Put all the values that go over xlim in one bucket (so size of buckets don't stretch with large max values)
-        # max_vals = np.ones(errors.shape) * (xlim[1] + 0.01)
-        # indices = errors > xlim[1]
-        # errors[indices] = max_vals[indices]
-
-        max_val = np.max(errors)
-        n_bins_vis_range = 50
-        n_bins_total = int((n_bins_vis_range * max_val) / xlim[1])
-
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
-        f = plt.figure(figsize=(20, 10))
-        f.tight_layout(rect=[0, 0.03, 1, 0.95])
-        values, base = np.histogram(errors, bins=n_bins_total)
-        unity_values = values / values.sum()
-        cumulative = np.cumsum(unity_values)
-        plt.plot(base[:-1], cumulative)
-        plt.xlim(xlim)
-        plt.xticks(fontsize=15)
-        plt.yticks(fontsize=15)
-        plt.xlabel('Error in ' + error_type + ' (' + unit + ')', fontsize=20, weight='bold')
-        plt.ylabel('Cumulative distribution', fontsize=20, weight='bold')
-        plt.savefig(directory + '/err_hist_' + error_type + '_base_' + base_id + '.png', format='png')
-        plt.close()
+    # def plot_cumulative_err(self, errors, error_type, unit, path_name, run_id, base_id):
+    #
+    #     directory = self.results_dir + path_name + '/' + path_type + '/run_' + str(run_id)
+    #     xlim = [0.0, 1.0] if error_type == 'translation' else [0.0, 3.0]
+    #
+    #     max_val = np.max(errors)
+    #     n_bins_vis_range = 50
+    #     n_bins_total = int((n_bins_vis_range * max_val) / xlim[1])
+    #
+    #     if not os.path.exists(directory):
+    #         os.makedirs(directory)
+    #
+    #     f = plt.figure(figsize=(20, 10))
+    #     f.tight_layout(rect=[0, 0.03, 1, 0.95])
+    #     values, base = np.histogram(errors, bins=n_bins_total)
+    #     unity_values = values / values.sum()
+    #     cumulative = np.cumsum(unity_values)
+    #     plt.plot(base[:-1], cumulative)
+    #     plt.xlim(xlim)
+    #     plt.xticks(fontsize=15)
+    #     plt.yticks(fontsize=15)
+    #     plt.xlabel('Error in ' + error_type + ' (' + unit + ')', fontsize=20, weight='bold')
+    #     plt.ylabel('Cumulative distribution', fontsize=20, weight='bold')
+    #     plt.savefig(directory + '/err_hist_' + error_type + '_base_' + base_id + '.png', format='png')
+    #     plt.close()

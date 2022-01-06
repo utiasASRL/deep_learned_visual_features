@@ -22,7 +22,7 @@ def main(config):
     # Directory to store outputs to stdout/stderr.
     results_path = f"{config['home_path']}/results/dataset/{config['dataset_name']}/"
     # Directory where the data is stored (images, transforms text files).
-    data_path = f"{config['data_path']}"
+    data_path = f"{config['home_path']}/data"
     # File to store the generated training dataset.
     dataset_path = f"{config['home_path']}/datasets/{config['dataset_name']}.pickle"
 

@@ -6,9 +6,9 @@
   "checkpoint_name": "network_v1",
 
   "training": {
-    "start_svd": 2,
+    "start_pose_estimation": 2,
     "max_epochs": 500,
-    "patience": 50
+    "patience": 2
   },
 
   "network": {

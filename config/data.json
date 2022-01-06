@@ -1,6 +1,6 @@
 {
   "home_path": "/home/path",
-  "data_path": "/data/path",
+
   "dataset_name": "multiseason_v1",
   "num_train_samples": 100000,
   "num_validation_samples": 20000,

@@ -62,7 +62,7 @@ class Pipeline(nn.Module):
         image_coords = torch.stack((u_coord, v_coord), dim=0)  # 2xHW
         self.register_buffer('image_coords', image_coords)
 
-    def forward(self, net, images, disparities, pose_se3, pose_log, epoch):
+    def forward(self, net, images, disparities, pose_se3, pose_log, epoch, test=False):
         """
             A forward pass of the training piepline to estimate the relative pose given a source and target image
             pair. Also computes losses for training.
@@ -77,6 +77,7 @@ class Pipeline(nn.Module):
                 pose_log (torch.tensor): a length 6 vector representing the ground truth relative pose transformation
                                           from the source to target frame (Bx6).
                 epoch (int): the current training epoch.
+                test (bool): True if we are running a test, False if training or validation.
 
             Returns:
                 losses (dict): a dictionary mapping the type of loss to its value. Also includes the weighted sum of
@@ -98,12 +99,6 @@ class Pipeline(nn.Module):
 
         pose_se3 = pose_se3.cuda()
         pose_log = pose_log.cuda()
-
-        # Variables to store the loss
-        losses = {'total': torch.zeros(1).cuda()}
-        mse_loss_fn = torch.nn.MSELoss()
-        loss_types = self.config['loss']['types']
-        loss_weights = self.config['loss']['weights']
 
         ################################################################################################################
         #  Get keypoints and associated info for the source and target frames
@@ -237,7 +232,7 @@ class Pipeline(nn.Module):
         ################################################################################################################
 
         # We can choose to use just the keypoint loss and not compute pose for the first few epochs.
-        if epoch >= self.config['training']['start_svd']:
+        if test or (epoch >= self.config['training']['start_pose_estimation']):
 
             #  Check that we have enough inliers for all example sin the bach to compute pose.
             valid = kpt_valid_src & kpt_valid_pseudo & valid_inliers
@@ -249,10 +244,19 @@ class Pipeline(nn.Module):
             weights[valid == 0] = 0.0
             T_trg_src = self.svd_block(kpt_3D_src, kpt_3D_pseudo, weights)
 
+        # If we are testing, return the pose.
+        if test:
+            return T_trg_src
 
         ################################################################################################################
         # Compute the losses
         ################################################################################################################
+
+        # Variables to store the loss
+        losses = {'total': torch.zeros(1).cuda()}
+        mse_loss_fn = torch.nn.MSELoss()
+        loss_types = self.config['loss']['types']
+        loss_weights = self.config['loss']['weights']
 
         # Keypoint loss in different versions depending on using 2D coordinates, 3D coordinates, or a subset of the
         # ground truth pose to transform the target points in the plane.
@@ -284,7 +288,7 @@ class Pipeline(nn.Module):
             losses['total'] += keypoint_loss
 
         # Pose loss either using the full 6DOF pose or a subset (x, y, heading).
-        if epoch >= self.config['training']['start_svd']:
+        if test or (epoch >= self.config['training']['start_pose_estimation']):
             if ('pose' in loss_types):
                 T_trg_src_gt = pose_se3
                 rot_loss, trans_loss = self.pose_loss(T_trg_src_gt, T_trg_src, mse_loss_fn)
@@ -312,7 +316,7 @@ class Pipeline(nn.Module):
         # Return the estimated pose and the loss
         ################################################################################################################
 
-        if epoch >= self.config['training']['start_svd']:
+        if epoch >= self.config['training']['start_pose_estimation']:
             return losses, T_trg_src
         else:
             # Haven't computed the pose yet, just the keypoint loss.
