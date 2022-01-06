@@ -129,29 +129,3 @@ class Plotting:
                 plt.savefig(f'{directory}/pose_{dof_str[dof_ind]}_live_run_{live_run_id}.png', format='png')
                 plt.savefig(f'{directory}/pose_{dof_str[dof_ind]}_live_run_{live_run_id}.pdf', format='pdf')
                 plt.close()
-
-    # def plot_cumulative_err(self, errors, error_type, unit, path_name, run_id, base_id):
-    #
-    #     directory = self.results_dir + path_name + '/' + path_type + '/run_' + str(run_id)
-    #     xlim = [0.0, 1.0] if error_type == 'translation' else [0.0, 3.0]
-    #
-    #     max_val = np.max(errors)
-    #     n_bins_vis_range = 50
-    #     n_bins_total = int((n_bins_vis_range * max_val) / xlim[1])
-    #
-    #     if not os.path.exists(directory):
-    #         os.makedirs(directory)
-    #
-    #     f = plt.figure(figsize=(20, 10))
-    #     f.tight_layout(rect=[0, 0.03, 1, 0.95])
-    #     values, base = np.histogram(errors, bins=n_bins_total)
-    #     unity_values = values / values.sum()
-    #     cumulative = np.cumsum(unity_values)
-    #     plt.plot(base[:-1], cumulative)
-    #     plt.xlim(xlim)
-    #     plt.xticks(fontsize=15)
-    #     plt.yticks(fontsize=15)
-    #     plt.xlabel('Error in ' + error_type + ' (' + unit + ')', fontsize=20, weight='bold')
-    #     plt.ylabel('Cumulative distribution', fontsize=20, weight='bold')
-    #     plt.savefig(directory + '/err_hist_' + error_type + '_base_' + base_id + '.png', format='png')
-    #     plt.close()
