@@ -1,9 +1,9 @@
 {
-  "home_path": "/home/mgr",
+  "home_path": "/home/<user_name>",
 
-  "experiment_name": "train_model_v1",
-  "dataset_name": "multiseason_v1",
-  "checkpoint_name": "network_dark_extend_585_16_h16w16_test_github",
+  "experiment_name": "test_model",
+  "dataset_name": "multiseason",
+  "checkpoint_name": "network_multiseason_layer16_window1616",
 
   "network": {
     "num_channels": 3,
@@ -22,7 +22,7 @@
     "type": "ransac",
     "dim": ["3D"],
     "inlier_threshold": 0.4,
-    "error_tolerance":  {"3D": 4.0, "2D": 50.0, "plane": 3.0},
+    "error_tolerance":  {"3D": 4.0, "2D": 50.0},
     "num_iterations": 15
   },
 

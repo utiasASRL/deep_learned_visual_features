@@ -37,6 +37,9 @@ def main(config):
     fe = open(f'{results_path}err_data.txt', 'w')
     sys.stderr = fe
 
+    # Record the parameter configurations.
+    print(config)
+
     # Set up device, using GPU 0
     device = torch.device('cuda:{}'.format(0) if torch.cuda.device_count() > 0 else 'cpu')
     torch.cuda.set_device(0)

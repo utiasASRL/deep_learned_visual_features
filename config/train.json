@@ -1,14 +1,14 @@
 {
-  "home_path": "/home/path",
+  "home_path": "/home/<user_name>",
 
-  "experiment_name": "train_model_v1",
-  "dataset_name": "multiseason_v1",
-  "checkpoint_name": "network_v1",
+  "experiment_name": "train_model",
+  "dataset_name": "dataset_multiseason",
+  "checkpoint_name": "network_multiseason_v1",
 
   "training": {
-    "start_pose_estimation": 2,
+    "start_pose_estimation": 4,
     "max_epochs": 500,
-    "patience": 2
+    "patience": 50
   },
 
   "network": {
