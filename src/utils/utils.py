@@ -49,10 +49,7 @@ def compute_mean_std(mel_data, data_dir, height, width):
     image_params = {'data_dir': data_dir,
                     'height': height,
                     'width': width,
-                    'crop_height': height,
-                    'crop_width': width,
                     'use_normalization': False,
-                    'use_crop': False,
                     'use_disparity': False,
                     }
 

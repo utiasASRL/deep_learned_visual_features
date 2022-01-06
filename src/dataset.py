@@ -14,8 +14,7 @@ class Dataset(data.Dataset):
         Dataset for the VT&R localization data.
     """
 
-    def __init__(self, data_dir, height=384, width=512, crop_height=384, crop_width=512,
-                 use_normalization=False, use_crop=False, use_disparity=True):
+    def __init__(self, data_dir, height=384, width=512, use_normalization=False, use_disparity=True):
         """
             Initialize the Dataset class with the necessary parameters.
 
@@ -23,10 +22,7 @@ class Dataset(data.Dataset):
                 data_dir (string): the directory where the images are stored.
                 height (int): height of the images.
                 width (int): width of the images.
-                crop_height (int): desired height of the images if they should be cropped.
-                crop_width (int): desired width of the images if they should be cropped.
                 use_normalization (bool): whether to normalize the images.
-                use_crop (bool): whether to crop the images.
                 use_disparity (bool): whether to generate disparity for stereo pairs.
         """
 
@@ -36,10 +32,7 @@ class Dataset(data.Dataset):
         self.data_dir = data_dir
         self.height = height
         self.width = width
-        self.crop_height = crop_height
-        self.crop_width = crop_width
         self.use_normalization = use_normalization
-        self.use_crop = use_crop
         self.use_disparity = use_disparity
 
         # Create transforms to apply to images
@@ -119,19 +112,14 @@ class Dataset(data.Dataset):
         run_ids = data_info[1::2]
         pose_ids = data_info[2::2]
 
-        self.im_height = self.crop_height if self.use_crop else self.height
-        self.im_width = self.crop_width if self.use_crop else self.width
-
-
-        i, j = 0, 0                     # Indices to use for cropping the images.
         num_frames = 2                  # One source and one target frame.
         num_channels = num_frames * 6   # Two RGB stereo pairs, 2 * 2 * 3.
 
-        X = torch.zeros(num_channels, self.im_height, self.im_width)   # Images
-        D = torch.zeros(num_frames, self.im_height, self.im_width)              # Disparity
+        X = torch.zeros(num_channels, self.height, self.width)   # Images
+        D = torch.zeros(num_frames, self.height, self.width)     # Disparity
 
-        self.add_images(X, 0, path_name, run_ids[0], pose_ids[0], i, j, self.use_normalization) # Source image
-        self.add_images(X, 1, path_name, run_ids[1], pose_ids[1], i, j, self.use_normalization) # Target image
+        self.add_images(X, 0, path_name, run_ids[0], pose_ids[0], self.use_normalization) # Source image
+        self.add_images(X, 1, path_name, run_ids[1], pose_ids[1], self.use_normalization) # Target image
 
         if self.use_disparity:
             self.add_disparity(D, 0, path_name, run_ids[0], pose_ids[0]) # Source disparity
@@ -143,7 +131,7 @@ class Dataset(data.Dataset):
 
         return X, D, sample_id, y_se3, y_log
 
-    def add_images(self, X, ind, path_name, run_id, pose_id, i, j, normalize_img):
+    def add_images(self, X, ind, path_name, run_id, pose_id, normalize_img):
         """
             Add a stereo pair of images to the images tensor.
 
@@ -153,16 +141,14 @@ class Dataset(data.Dataset):
                 path_name (string): name of the path the images are taken from.
                 run_id (int): id of the run the images are taken from.
                 pose_id (int): id of the pose along the given run that the images are taken from.
-                i (int): index used for image cropping.
-                j (int): index used for image cropping.
                 normalize_img (bool): whether to normalize the image.
         """
         # Stereo pair of RGB images (2 x 3 channels).
         start = ind * 6
-        self.add_image(X, start, 'left', path_name, run_id, pose_id, i, j, normalize_img)
-        self.add_image(X, start + 3, 'right', path_name, run_id, pose_id, i, j, normalize_img)
+        self.add_image(X, start, 'left', path_name, run_id, pose_id, normalize_img)
+        self.add_image(X, start + 3, 'right', path_name, run_id, pose_id, normalize_img)
 
-    def add_image(self, X, start_ind, loc, path_name, run_id, pose_id, i, j, normalize_img):
+    def add_image(self, X, start_ind, loc, path_name, run_id, pose_id, normalize_img):
         """
             Add one image to the images tensor.
 
@@ -173,8 +159,6 @@ class Dataset(data.Dataset):
                 path_name (string): name of the path the images are taken from.
                 run_id (int): id of the run the images are taken from.
                 pose_id (int): id of the pose along the given run that the images are taken from.
-                i (int): index used for image cropping.
-                j (int): index used for image cropping.
                 normalize_img (bool): whether to normalize the image.
         """
         # Generate the image file name based on the id of the vertex the image belongs to.
@@ -182,9 +166,6 @@ class Dataset(data.Dataset):
                    f"images/{loc}/{pose_id.zfill(6)}.png"
 
         img = Image.open(img_file)
-
-        if self.use_crop:
-            img = transforms.functional.crop(img, 0.0, self.width - self.im_width, self.im_height, self.im_width)
 
         # Turn the image into a tensor and normalize if required.
         if normalize_img:
@@ -241,8 +222,5 @@ class Dataset(data.Dataset):
             
         # Compute disparity using OpenCV.
         disparity = self.get_disparity(left_img, right_img)
-
-        if self.use_crop:
-            disparity = disparity[:self.im_height, self.desired_width - self.im_width:]
 
         D[index, :, :] = disparity

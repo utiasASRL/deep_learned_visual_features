@@ -65,17 +65,17 @@ def execute_epoch(pipeline, net, data_loader, stats, epoch, mode, config, dof, o
             if mode == 'training':
                 optimizer.zero_grad()
 
-            # try:
-            # Compute the loss and the output pose.
-            losses, output_se3 = pipeline.forward(net, images, disparities, pose_se3, pose_log, epoch)
+            try:
+                # Compute the loss and the output pose.
+                losses, output_se3 = pipeline.forward(net, images, disparities, pose_se3, pose_log, epoch)
 
-            if mode == 'training':
-                losses['total'].backward()
+                if mode == 'training':
+                    losses['total'].backward()
 
-            # except Exception as e:
-            #     print(e)
-            #     print("Ids: {}".format(ids))
-            #     continue
+            except Exception as e:
+                print(e)
+                print("Ids: {}".format(ids))
+                continue
 
             if mode == 'training':
                 torch.nn.utils.clip_grad_norm(net.parameters(), max_norm=2.0, norm_type=2)

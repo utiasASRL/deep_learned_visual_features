@@ -191,13 +191,13 @@ class Pipeline(nn.Module):
                 rot_col3 = torch.stack([zero.clone(), zero.clone(), one.clone(), zero.clone()], dim=1)      # Bx4
                 trans_col = torch.stack([log_pose[:, 0], log_pose[:, 1], zero.clone(), one.clone()], dim=1) # Bx4
 
-                T_trg_src_inl_gt = torch.stack([rot_col1, rot_col2, rot_col3, trans_col], dim=2)  # Bx4x4
+                T_trg_src_gt_inl = torch.stack([rot_col1, rot_col2, rot_col3, trans_col], dim=2)  # Bx4x4
 
             T_s_v = self.T_s_v.expand(batch_size, 4, 4)
-            T_trg_src_inl_gt_sensor = T_s_v.bmm(T_trg_src_inl_gt).bmm(se3_inv(T_s_v)) # Transform pose to sensor frame.
+            T_trg_src_gt_inl_sensor = T_s_v.bmm(T_trg_src_gt_inl).bmm(se3_inv(T_s_v)) # Transform pose to sensor frame.
 
             # The ground truth target points, which will be compared to the matched target points.
-            kpt_3D_pseudo_gt = T_trg_src_inl_gt_sensor.bmm(kpt_3D_src)                    # Bx4xN
+            kpt_3D_pseudo_gt = T_trg_src_gt_inl_sensor.bmm(kpt_3D_src)                    # Bx4xN
             kpt_2D_pseudo_gt = self.stereo_cam.camera_model(kpt_3D_pseudo_gt)[:, 0:2, :]  # Bx2xN
 
             # Find the residual between the ground truth and matched point coordinates and determine the inliers.
@@ -213,7 +213,7 @@ class Pipeline(nn.Module):
 
             if 'plane' in self.config['outlier_rejection']['dim']:
                 # Do comparison in the vehicle frame, not the sensor frame.
-                kpt_3D_pseudo_gt_vehicle = T_trg_src_inl_gt.bmm(se3_inv(T_s_v).bmm(kpt_3D_src))  # Bx4xN
+                kpt_3D_pseudo_gt_vehicle = T_trg_src_gt_inl.bmm(se3_inv(T_s_v).bmm(kpt_3D_src))  # Bx4xN
                 kpt_3D_pseudo_vehicle = se3_inv(T_s_v).bmm(kpt_3D_pseudo)
                 err = torch.norm(kpt_3D_pseudo_vehicle[:, 0:2, :] - kpt_3D_pseudo_gt_vehicle[:, 0:2, :], dim=1)  # BxN
                 inliers_plane = err < self.config['outlier_rejection']['error_tolerance']['plane']
@@ -275,7 +275,7 @@ class Pipeline(nn.Module):
         if ('keypoint_plane' in loss_types):
             valid = kpt_valid_pseudo & kpt_valid_src & valid_inliers   # B x 1 x N
             valid = valid.expand(batch_size, 2, valid.size(2))     # B x 4 x N
-            kpt_3D_pseudo_gt_vehicle = T_trg_src_inl_gt.bmm(se3_inv(T_s_v).bmm(kpt_3D_src))  # Bx4xN
+            kpt_3D_pseudo_gt_vehicle = T_trg_src_gt_inl.bmm(se3_inv(T_s_v).bmm(kpt_3D_src))  # Bx4xN
             kpt_3D_pseudo_vehicle = se3_inv(T_s_v).bmm(kpt_3D_pseudo)
             keypoint_loss = mse_loss_fn(kpt_3D_pseudo_vehicle[:, 0:2, :][valid],
                                         kpt_3D_pseudo_gt_vehicle[:, 0:2, :][valid])
