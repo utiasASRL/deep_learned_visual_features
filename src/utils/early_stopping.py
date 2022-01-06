@@ -18,7 +18,7 @@ class EarlyStopping:
         self.loss_min = loss_min
         self.epoch_min = epoch_min
 
-    def check_stop(self, loss, model, optimizer, model_file_path, train_stats, validation_stats, epoch):
+    def check_stop(self, loss, model, optimizer, checkpoint_path, train_stats, validation_stats, epoch):
         """
             Check if model training needs to stop based on the validation loss. Save the model of the validation loss
             improves (or stays at minimum).
@@ -27,7 +27,7 @@ class EarlyStopping:
                 loss (float): validation loss.
                 model (torch.nn.Module): neural network model.
                 optimizer (torch.optim.Optimizer): training optimizer.
-                model_file_path (string name): file path for saving the model.
+                checkpoint_path (string name): file path for saving the model.
                 train_stats (float): validation loss. TODO
                 validation_stats (float): validation loss. TODO
                 epoch (int): training epoch.
@@ -47,7 +47,7 @@ class EarlyStopping:
                         'loss': loss,
                         'train_stats': train_stats,
                         'valid_stats': validation_stats,
-                        }, '{}_{}.pth'.format(model_file_path, epoch))
+                        }, '{}_{}.pth'.format(checkpoint_path, epoch)) # Add epoch so we don't overwrite existing file.
 
         elif loss > self.loss_min:
 

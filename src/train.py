@@ -32,13 +32,18 @@ def execute_epoch(pipeline, net, data_loader, stats, epoch, mode, config, dof, o
                                  computes pose and losses.
             net (torch.nn.Module): neural network module.
             data_loader (torch.utils.data.DataLoader): data loader for training data.
-            stats (Statistics): an object for keeping track of losses and errors during training.
+            stats (Statistics): an object for keeping track of losses.
             epoch (int): current epoch.
             mode (string): 'training' or 'validation'
             config (dict): parameter configurations.
             dof (list[int]): indices of the pose DOF (out of the 6 DOF) that we want to learn.
             optimizer (torch.optim.Optimizer or None): optimizer if training or None if validation.
             scheduler(torch.optim.lr_scheduler or None): scheduler if training or None if validation.
+
+        Returns:
+            avg_loss (float): the average loss for the epoch computed over all batches. The average for the weighted
+                              sum of all loss types.
+            stats (Statistics): object with recorded losses for all processed data samples.
     """
     start_time = time.time()
 
@@ -46,8 +51,6 @@ def execute_epoch(pipeline, net, data_loader, stats, epoch, mode, config, dof, o
         net.train()
     else:
         net.eval()
-
-    stats.epoch_reset()
 
     epoch_losses = {}
     errors = None
@@ -168,11 +171,11 @@ def train(pipeline, net, optimizer, scheduler, train_loader, validation_loader, 
             validation_loader (torch.utils.data.DataLoader): data loader for validation data.
             start_epoch (int): epoch we start training from, 0 if starting from scratch.
             min_validation_loss (float): the minimum validation loss during training.
-            train_stats (Statistics): an object for keeping track of losses and errors for the training data.
-            validation_stats (Statistics): an object for keeping track of losses and errors for the validation data.
+            train_stats (Statistics): an object for keeping track of losses for the training data.
+            validation_stats (Statistics): an object for keeping track of losses for the validation data.
             config (dict): configurations for model training.
             results_path (string): directory for storing results (outputs, plots).
-            checkpoint_path (string): directory to store the checkpoint.
+            checkpoint_path (string): file path to store the checkpoint.
     """
     # Helper class for plotting results.
     plotting = Plotting(results_path)
@@ -244,10 +247,13 @@ def main(config):
     dataset_name = config['dataset_name']
 
     dataset_path = f'{datasets_path}/{dataset_name}.pickle'
-    checkpoint_path = f'{checkpoints_path}/{checkpoint_name}.pth'
+    checkpoint_path = f'{checkpoints_path}/{checkpoint_name}'
 
     if not os.path.exists(results_path):
         os.makedirs(results_path)
+
+    if not os.path.exists(checkpoints_path):
+        os.makedirs(checkpoint_path)
 
     # Print outputs to files
     orig_stdout = sys.stdout
@@ -306,8 +312,9 @@ def main(config):
     validation_stats = Statistics()
 
     # Resume training from checkpoint if available
-    if os.path.exists(checkpoint_path):
-        checkpoint = torch.load(checkpoint_path)
+    print(f'{checkpoint_path}.pth')
+    if os.path.exists(f'{checkpoint_path}.pth'):
+        checkpoint = torch.load(f'{checkpoint_path}.pth')
         net.load_state_dict(checkpoint['model_state_dict'])
 
         if 'optimizer_state_dict' in checkpoint.keys():
@@ -322,8 +329,6 @@ def main(config):
         min_validation_loss = checkpoint['val_loss'] if 'val_loss' in checkpoint.keys() else 10e9
         train_stats = checkpoint['train_stats'] if 'train_stats' in checkpoint.keys() else Statistics()
         validation_stats = checkpoint['valid_stats'] if 'valid_stats' in checkpoint.keys() else Statistics()
-    else:
-        os.makedirs(checkpoint_path)
 
     net.cuda()
 
