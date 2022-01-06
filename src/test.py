@@ -54,7 +54,7 @@ def rmse(outputs_se3, targets_se3):
         print(f'RMSE, live_run_id {live_run_id}, translation: {rmse_tr}')
         print(f'RMSE, live_run_id {live_run_id}, rotation: {rmse_rot}\n')
 
-def test_model(pipeline, net, data_loader, stats, dof):
+def test_model(pipeline, net, data_loader, dof):
     """
         Run the test.
 
@@ -63,15 +63,15 @@ def test_model(pipeline, net, data_loader, stats, dof):
                                  computes pose and losses.
             net (torch.nn.Module): neural network module.
             data_loader (torch.utils.data.DataLoader): data loader for training data.
-            stats (Statistics): object to keep track of test losses and errors.
             dof (list[int]): indices of the pose DOF (out of the 6 DOF) that we have learned.
     """
     start_time = time.time()
 
     net.eval()
-    stats.epoch_reset()
 
-    test_losses = {}
+    # Object to keep track of test errors.
+    stats = Statistics()
+
     errors = None
     # We want to print out the avg./max target pose absolute values for reference together with the pose errors.
     targets_total = torch.zeros(6)
@@ -82,7 +82,6 @@ def test_model(pipeline, net, data_loader, stats, dof):
     with torch.no_grad():
         for images, disparities, ids, pose_se3, pose_log in data_loader:
 
-            losses = {}
             batch_size = images.size(0)
 
             try:
@@ -131,8 +130,6 @@ def test_model(pipeline, net, data_loader, stats, dof):
     errors[:, 3:6] = np.rad2deg(errors[:, 3:6])
     test_errors = np.sqrt(np.mean(errors ** 2, axis=0)).reshape(1, 6)
 
-    stats.add_epoch_stats(test_losses, test_errors)
-
     targets_avg = (targets_total * (1.0 / num_examples)).detach().cpu().numpy()
     targets_avg[3:6] = np.rad2deg(targets_avg[3:6])
     targets_max = targets_max.detach().cpu().numpy()
@@ -175,12 +172,11 @@ def test(pipeline, net, test_loaders, results_path):
         print(f'\nTesting path: {path_name}')
 
         start_time = time.time()
-        path_stats = Statistics()
 
         # Loop over each data loader (one data loader per map run we localize to).
         for i in range(len(test_loaders[path_name])):
 
-            path_stats = test_model(pipeline, net, test_loaders[path_name][i], path_stats, dof)
+            path_stats = test_model(pipeline, net, test_loaders[path_name][i], dof)
 
             outputs_log = path_stats.get_outputs_log()
             targets_log = path_stats.get_targets_log()

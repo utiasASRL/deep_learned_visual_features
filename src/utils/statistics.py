@@ -2,23 +2,11 @@ import numpy as np
 
 class Statistics:
     """
-        A class for keeping track of estimated poses, targets, errors, and losses.
+        A class for keeping track of poses, errors, and losses.
     """
     def __init__(self):
         self.epoch_losses = {}
         self.epoch_errors = np.empty(0)
-        self.outputs_se3 = {}
-        self.targets_se3 = {}
-        self.outputs_log = {}
-        self.targets_log = {}
-        self.live_run_ids = []
-        self.map_run_id = None
-        self.sample_ids = {}
-
-    def epoch_reset(self):
-        """
-            Reset the variables tha track the estimated poses and ids for an epoch before a new epoch.
-        """
         self.outputs_se3 = {}
         self.targets_se3 = {}
         self.outputs_log = {}

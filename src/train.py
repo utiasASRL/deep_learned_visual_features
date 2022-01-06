@@ -312,7 +312,6 @@ def main(config):
     validation_stats = Statistics()
 
     # Resume training from checkpoint if available
-    print(f'{checkpoint_path}.pth')
     if os.path.exists(f'{checkpoint_path}.pth'):
         checkpoint = torch.load(f'{checkpoint_path}.pth')
         net.load_state_dict(checkpoint['model_state_dict'])
