@@ -23,25 +23,36 @@ from visualization.plots import Plotting
 
 torch.backends.cudnn.benchmark = True
 
-def rmse(out_dict, trg_dict):
+def rmse(outputs_se3, targets_se3):
+    """
+        Compute the rotation and translation RMSE for the SE(3) poses provided. Compute RMSE for ich live run
+        individually.
 
-    for run in out_dict.keys():
+        Args:
+            outputs_se3 (dict): map from id of the localized live run to a list of estimated pose transforms
+                                represented as 4x4 numpy arrays.
+            outputs_se3 (dict): map from id of the localized live run to a list of ground truth pose transforms
+                                represented as 4x4 numpy arrays.
+    """
 
-        out_mat = torch.from_numpy(np.stack(out_dict[run], axis=0))
-        trg_mat = torch.from_numpy(np.stack(trg_dict[run], axis=0))
+    for live_run_id in outputs_se3.keys():
 
+        out_mat = torch.from_numpy(np.stack(outputs_se3[live_run_id], axis=0))
+        trg_mat = torch.from_numpy(np.stack(targets_se3[live_run_id], axis=0))
+
+        # Get the difference in pose by T_diff = T_trg * inv(T_src)
         diff_mat = trg_mat.bmm(out_mat.inverse())
-        R = diff_mat[:, 0:3, 0:3]
-        diff_r = diff_mat[:, 0:3, 3].numpy()
+        diff_R = diff_mat[:, 0:3, 0:3]
+        diff_tr = diff_mat[:, 0:3, 3].numpy()
 
-        err_tr = np.sqrt((diff_r[:, 0] * diff_r[:, 0]) + (diff_r[:, 1] * diff_r[:, 1]) + (diff_r[:, 2] * diff_r[:, 2]))
-        rmse_tr = np.sqrt(np.mean(err_tr**2, axis=0))
+        err_tr_sq = (diff_tr[:, 0] * diff_tr[:, 0]) + (diff_tr[:, 1] * diff_tr[:, 1]) + (diff_tr[:, 2] * diff_tr[:, 2])
+        rmse_tr = np.sqrt(np.mean(err_tr_sq, axis=0))
 
-        d = torch.acos((0.5 * (R[:, 0, 0] + R[:, 1, 1] + R[:, 2, 2] - 1.0)).clamp(-1 + 1e-6, 1 - 1e-6)).numpy()
-        rmse_rot = np.sqrt(np.mean(np.rad2deg(d)**2, axis=0))
+        d = torch.acos((0.5 * (diff_R[:, 0, 0] + diff_R[:, 1, 1] + diff_R[:, 2, 2] - 1.0)).clamp(-1 + 1e-6, 1 - 1e-6))
+        rmse_rot = np.sqrt(np.mean(np.rad2deg(d.numpy())**2, axis=0))
 
-        print("RMSE, run {}, tr: {}".format(run, rmse_tr))
-        print("RMSE, run {}, rot: {}\n".format(run, rmse_rot))
+        print(f'RMSE, live_run_id {live_run_id}, translation: {rmse_tr}')
+        print(f'RMSE, live_run_id {live_run_id}, rotation: {rmse_rot}\n')
 
 def test_model(pipeline, net, data_loader, stats, dof):
     """
@@ -127,11 +138,13 @@ def test_model(pipeline, net, data_loader, stats, dof):
     targets_max = targets_max.detach().cpu().numpy()
     targets_max[3:6] = np.rad2deg(targets_max[3:6])
 
+    print(f'\nMap run id: {stats.get_map_run_id()}')
+    print(f'Live run ids: {stats.get_live_run_ids()}')
     print(f'Pose RMSE by DOF: {test_errors[:, np.array(dof)]}')
     print(f'Average pose targets by DOF: {targets_avg[np.array(dof)]}')
     print(f'Max pose targets by DOF: {targets_max[np.array(dof)]}')
 
-    print(f'Path test duration: {time.time() - start_time} seconds. \n')
+    print(f'Path test duration: {time.time() - start_time} seconds.\n')
 
     return stats
 
@@ -161,7 +174,7 @@ def test(pipeline, net, test_loaders, results_path):
 
         print(f'\nTesting path: {path_name}')
 
-        start = time.time()
+        start_time = time.time()
         path_stats = Statistics()
 
         # Loop over each data loader (one data loader per map run we localize to).
@@ -179,6 +192,7 @@ def test(pipeline, net, test_loaders, results_path):
             plotting.plot_outputs(outputs_log, targets_log, path_name, map_run_id, dof)
 
             # Compute the RMSE for translation and rotation if we are using all 6 DOF.
+            # TODO: provide the same for SE(2).
             if len(dof) == 6:
                 outputs_se3 = path_stats.get_outputs_se3()
                 targets_se3 = path_stats.get_targets_se3()
@@ -208,12 +222,12 @@ def main(config):
         os.makedirs(results_path)
 
     # Print outputs to files
-    # orig_stdout = sys.stdout
-    # fl = open(f'{results_path}out_test.txt', 'w')
-    # sys.stdout = fl
-    # orig_stderr = sys.stderr
-    # fe = open(f'{results_path}err_test.txt', 'w')
-    # sys.stderr = fe
+    orig_stdout = sys.stdout
+    fl = open(f'{results_path}out_test.txt', 'w')
+    sys.stdout = fl
+    orig_stderr = sys.stderr
+    fe = open(f'{results_path}err_test.txt', 'w')
+    sys.stderr = fe
 
     # Record the config settings.
     print(config)
@@ -275,10 +289,10 @@ def main(config):
     test(testing_pipeline, net, path_loaders, results_path)
 
     # Stop writing outputs to file.
-    # sys.stdout = orig_stdout
-    # fl.close()
-    # sys.stderr = orig_stderr
-    # fe.close()
+    sys.stdout = orig_stdout
+    fl.close()
+    sys.stderr = orig_stderr
+    fe.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
