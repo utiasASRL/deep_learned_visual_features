@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import pickle
+import re
 import sys
 import time
 
@@ -11,9 +12,12 @@ import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils import data
+from torch.utils.data.sampler import RandomSampler
 
 from src.dataset import Dataset
-from src.utils.lie_algebra import se3_log, se3_exp
+from src.model.pipeline import Pipeline
+from src.model.unet import UNet
+from src.utils.lie_algebra import se3_log
 from src.utils.statistics import Statistics
 from visualization.plots import Plotting
 
@@ -39,7 +43,7 @@ def rmse(out_dict, trg_dict):
         print("RMSE, run {}, tr: {}".format(run, rmse_tr))
         print("RMSE, run {}, rot: {}\n".format(run, rmse_rot))
 
-def test_model(pipeline, net, data_loader, stats):
+def test_model(pipeline, net, data_loader, stats, dof):
     """
         Run the test.
 
@@ -49,6 +53,7 @@ def test_model(pipeline, net, data_loader, stats):
             net (torch.nn.Module): neural network module.
             data_loader (torch.utils.data.DataLoader): data loader for training data.
             stats (Statistics): object to keep track of test losses and errors.
+            dof (list[int]): indices of the pose DOF (out of the 6 DOF) that we have learned.
     """
     start_time = time.time()
 
@@ -64,14 +69,14 @@ def test_model(pipeline, net, data_loader, stats):
     num_batches, num_examples = 0, 0
 
     with torch.no_grad():
-        for images, disparity, ids, poses_se3, poses_log in data_loader:
+        for images, disparities, ids, pose_se3, pose_log in data_loader:
 
             losses = {}
             batch_size = images.size(0)
 
             try:
-                # Compute the loss and the output poses.
-                losses, outputs_se3 = pipeline.forward(net, images, disparities, poses_se3, poses_log, epoch)
+                # Compute the output poses (we use -1 a placeholder as epoch is not relevant).
+                output_se3 = pipeline.forward(net, images, disparities, pose_se3, pose_log, epoch=-1, test=True)
 
             except Exception as e:
                 print(e)
@@ -82,44 +87,35 @@ def test_model(pipeline, net, data_loader, stats):
             num_examples += batch_size
 
             # Get the error in each of the 6 pose DOF.
-            diff = se3_log(outputs_se3.inverse().bmm(poses_se3[0])).detach().cpu().numpy()
+            diff = se3_log(output_se3.inverse().bmm(pose_se3.cuda())).detach().cpu().numpy()
             if num_batches == 1:
                 errors = diff
             else:
                 errors = np.concatenate((errors, diff), axis=0)
 
-            # Save the losses.
-            for loss_type in losses.keys():
-                if loss_type in test_losses:
-                    test_losses[loss_type] += losses[loss_type].item()
-                else:
-                    test_losses[loss_type] = losses[loss_type].item()
+            targets_total += torch.sum(torch.abs(pose_log), dim=0).detach().cpu()
+            targets_max = torch.max(targets_max, torch.max(torch.abs(pose_log.detach().cpu()), dim=0)[0])
 
-            targets_total += torch.sum(torch.abs(pose_se3), dim=0).detach().cpu()
-            targets_max = torch.max(targets_max, torch.max(torch.abs(pose_se3.detach().cpu()), dim=0)[0])
-
-            # Collect the poses so we can plot the results later.
-            outputs_se3_np = outputs_se3.detach().cpu().numpy()  # Bx4x4
-            targets_se3_np = targets_se3.detach().cpu().numpy()
+            # Collect the poses so that we can plot the results later.
+            output_log_np = se3_log(output_se3).detach().cpu().numpy()    # Bx6
+            target_log_np = se3_log(pose_se3).detach().cpu().numpy()
+            output_se3_np = output_se3.detach().cpu().numpy()              # Bx4x4
+            target_se3_np = pose_se3.detach().cpu().numpy()
             # kpt_inliers = torch.sum(saved_data['valid_inliers'][(0, 1)], dim=2).detach().cpu().numpy()  # B x 1
 
             # Loop over each datas sample in the batch.
-            for k in range(outputs_se3_np.shape[0]):
+            for k in range(output_se3_np.shape[0]):
                 sample_id = ids[k]
                 _, live_run_id, _, map_run_id, _ = re.findall('\w+', sample_id)
 
                 stats.add_sample_id(live_run_id, sample_id)
                 stats.add_live_run_id(live_run_id)
-                stats.add_map_run_id(map_run_id, live_run_id)
-
-                stats.add_outputs_targets_transforms(live_run_id, outputs_se3_np[k, :, :], targets_se3_np[k, :, :])
+                stats.set_map_run_id(map_run_id)
+                stats.add_outputs_targets_se3(live_run_id, output_se3_np[k, :, :], target_se3_np[k, :, :])
+                stats.add_outputs_targets_log(live_run_id, output_log_np[k, :], target_log_np[k, :])
                 # stats.add_kpt_inliers(live_run_id, kpt_inliers[k, 0])
 
-    # Compute the average test losses.
-    for loss_type in test_losses.keys():
-        test_losses[loss_type] = test_losses[loss_type] / float(num_batches)
-        print(f'Average test loss, {loss_type}: {epoch_losses[k]:.6f}')
-
+    # Compute errors.
     # RMSE for each pose DOF.
     errors[:, 3:6] = np.rad2deg(errors[:, 3:6])
     test_errors = np.sqrt(np.mean(errors ** 2, axis=0)).reshape(1, 6)
@@ -131,11 +127,11 @@ def test_model(pipeline, net, data_loader, stats):
     targets_max = targets_max.detach().cpu().numpy()
     targets_max[3:6] = np.rad2deg(targets_max[3:6])
 
-    print(f'Pose RMSE by DOF: {epoch_errors}')
-    print(f'Average pose targets by DOF: {targets_avg}')
-    print(f'Max pose targets by DOF: {targets_max}')
+    print(f'Pose RMSE by DOF: {test_errors[:, np.array(dof)]}')
+    print(f'Average pose targets by DOF: {targets_avg[np.array(dof)]}')
+    print(f'Max pose targets by DOF: {targets_max[np.array(dof)]}')
 
-    print(f'Epoch duration: {time.time() - start} seconds. \n')
+    print(f'Path test duration: {time.time() - start_time} seconds. \n')
 
     return stats
 
@@ -154,13 +150,16 @@ def test(pipeline, net, test_loaders, results_path):
     # Helper class for plotting results.
     plotting = Plotting(results_path)
 
+    # Find which of the DOF of the 6 DOF pose we want to learn. Record the indices to keep in the pose vector.
+    dof = [0, 1, 5] if 'pose_plane' in config['loss']['types'] else [0, 1, 2, 3, 4, 5]
+
     # The data loaders are stored in a dict that maps from path name to a list of data loaders as we may test using
     # data from more than one path. Also, for each path we localize different runs against each other. One run is used
     # as the map and then one or more other runs are localized to this map run. One individual data loader contains all
     # the samples for all live localized back to one map run.
     for path_name in test_loaders.keys():
 
-        print(f'Testing path: {path_name}')
+        print(f'\nTesting path: {path_name}')
 
         start = time.time()
         path_stats = Statistics()
@@ -168,20 +167,24 @@ def test(pipeline, net, test_loaders, results_path):
         # Loop over each data loader (one data loader per map run we localize to).
         for i in range(len(test_loaders[path_name])):
 
-            path_stats = test_model(pipeline, net, test_loaders[path_name][i], path_stats)
+            path_stats = test_model(pipeline, net, test_loaders[path_name][i], path_stats, dof)
 
-            outputs = path_stats.get_outputs()
-            targets = path_stats.get_targets()
+            outputs_log = path_stats.get_outputs_log()
+            targets_log = path_stats.get_targets_log()
             map_run_id = path_stats.get_map_run_id()
             live_run_ids = path_stats.get_live_run_ids()
             sample_ids = path_stats.get_sample_ids()
-            kpt_inliers = path_stats.get_kpt_inliers()
 
             # Plot each DOF of the estimated and target poses for each pair of live run localized to map run.
-            # plotting.plot_outputs(outputs, outputs_tr, targets, targets_tr, path_name, 0, map_run_id, data_type,
-            #                       ylim=[-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0])
+            plotting.plot_outputs(outputs_log, targets_log, path_name, map_run_id, dof)
 
-        print(f'Test time for path {path_name}: {time.time() - start}')
+            # Compute the RMSE for translation and rotation if we are using all 6 DOF.
+            if len(dof) == 6:
+                outputs_se3 = path_stats.get_outputs_se3()
+                targets_se3 = path_stats.get_targets_se3()
+                rmse(outputs_se3, targets_se3)
+
+        print(f'Test time for path {path_name}: {time.time() - start_time}')
 
 def main(config):
     """
@@ -190,36 +193,33 @@ def main(config):
         Args:
             config (dict): configurations for training the network.
     """
-    results_path = f"{config['home_path']}/results/{config['experiment_name']}"
-    networks_path = f"{config['home_path']}/networks"
-    data_path = f"{config['data_path']}/data"
+    results_path = f"{config['home_path']}/results/{config['experiment_name']}/"
+    checkpoints_path = f"{config['home_path']}/networks"
+    data_path = f"{config['home_path']}/data"
     datasets_path = f"{config['home_path']}/datasets"
 
-    checkpoint_name = config['checkpoint']
-    network_name = config['network_name']
+    checkpoint_name = config['checkpoint_name']
     dataset_name = config['dataset_name']
 
     dataset_path = f'{datasets_path}/{dataset_name}.pickle'
-    checkpoint_path = f'{networks_path}/{checkpoint_name}.pth'
+    checkpoint_path = f'{checkpoints_path}/{checkpoint_name}.pth'
 
     if not os.path.exists(results_path):
         os.makedirs(results_path)
 
     # Print outputs to files
-    orig_stdout = sys.stdout
-    out_fl = 'out_test.txt'
-    fl = open(results_path + out_fl, 'w')
-    sys.stdout = fl
-    orig_stderr = sys.stderr
-    fe = open(results_path + 'err_test.txt', 'w')
-    sys.stderr = fe
+    # orig_stdout = sys.stdout
+    # fl = open(f'{results_path}out_test.txt', 'w')
+    # sys.stdout = fl
+    # orig_stderr = sys.stderr
+    # fe = open(f'{results_path}err_test.txt', 'w')
+    # sys.stderr = fe
 
     # Record the config settings.
     print(config)
 
     # Load the data.
     dataloader_params = config['data_loader']
-    dataloader_params['shuffle'] = False
     dataset_params = config['dataset']
     dataset_params['data_dir'] = data_path
 
@@ -250,16 +250,6 @@ def main(config):
 
             index += 1
 
-    # checkpoint = torch.load(checkpoint_path)
-    # model.load_state_dict(checkpoint['model_state_dict'])
-    #
-    # # Store state dict for the network model only.
-    # new_state_dict = {}
-    # for name, param in model.state_dict().items():
-    #     if 'net' in name:
-    #         new_state_dict[name.replace('net.', '')] = param
-    # torch.save({'model_state_dict': new_state_dict}, '/home/mgr/results/network_snow_391_16_h16w16.pth')
-
     # Set up device, using GPU 0.
     device = torch.device('cuda:{}'.format(0) if torch.cuda.device_count() > 0 else 'cpu')
     torch.cuda.set_device(0)
@@ -282,13 +272,13 @@ def main(config):
 
     net.cuda()
 
-    test(testing_pipeline, net, path_loaders, config, results_path)
+    test(testing_pipeline, net, path_loaders, results_path)
 
     # Stop writing outputs to file.
-    sys.stdout = orig_stdout
-    fl.close()
-    sys.stderr = orig_stderr
-    fe.close()
+    # sys.stdout = orig_stdout
+    # fl.close()
+    # sys.stderr = orig_stderr
+    # fe.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

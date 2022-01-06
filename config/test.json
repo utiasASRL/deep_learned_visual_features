@@ -1,0 +1,54 @@
+{
+  "home_path": "/home/mgr",
+
+  "experiment_name": "train_model_v1",
+  "dataset_name": "multiseason_v1",
+  "checkpoint_name": "network_dark_extend_585_16_h16w16_test_github",
+
+  "network": {
+    "num_channels": 3,
+    "num_classes": 1,
+    "layer_size": 16
+  },
+
+  "pipeline": {
+    "window_h": 16,
+    "window_w": 16,
+    "dense_matching": true
+  },
+
+  "outlier_rejection": {
+    "on": true,
+    "type": "ransac",
+    "dim": ["3D"],
+    "inlier_threshold": 0.4,
+    "error_tolerance":  {"3D": 4.0, "2D": 50.0, "plane": 3.0},
+    "num_iterations": 15
+  },
+
+  "data_loader": {
+    "batch_size": 3,
+    "num_workers": 3,
+    "shuffle": false
+  },
+
+  "stereo": {
+    "cu": 253.502,
+    "cv": 196.822,
+    "f": 388.425,
+    "b": 0.239946
+  },
+
+  "dataset": {
+    "height": 384,
+    "width": 512,
+    "use_normalization": false,
+    "use_disparity": true
+  },
+
+  "loss": {
+    "types": [
+      "pose_plane"
+    ]
+  }
+}

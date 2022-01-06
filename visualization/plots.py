@@ -87,15 +87,15 @@ class Plotting:
             plt.savefig(f'{self.results_dir}error_epoch_{dof_str[dof_index]}.pdf', format='pdf')
             plt.close()
 
-    def plot_outputs(self, outputs_se3, targets_se3, path_name, map_run_id, dof):
+    def plot_outputs(self, outputs_log, targets_log, path_name, map_run_id, dof):
         """
             Plot estimated and target poses. Plot each of the estimated DOF separately.
 
             Args:
-                outputs_se3 (dict): a map from the live run id to the estimated poses for all localized vertices on
-                                    that run provided as 4x4 numpy arrays in a list.
-                targets_se3 (dict): a map from the live run id to the ground truth target poses for all localized
-                                    vertices on that run provided as 4x4 numpy arrays in a list.
+                outputs_log (dict): a map from the live run id to the estimated poses for all localized vertices on
+                                    that run provided as length 6 vectors stacked in a numpy array.
+                targets_log (dict): a map from the live run id to the ground truth target poses for all localized
+                                    vertices on that run provided as length 6 vectors stacked in a numpy array.
                 path_name (string): name of the path.
                 map_run_id (int): the id of the run used as the map, i.e. which all the other runs are localized to.
                 dof (list[int]): indices of the DOF to plot.
@@ -107,15 +107,13 @@ class Plotting:
 
         dof_str = ['x', 'y', 'z', 'roll', 'pitch', 'yaw']
 
-        for live_run_id in outputs_se3.keys():
-
-            outputs_log
+        for live_run_id in outputs_log.keys():
 
             for dof_ind in dof:
 
                 # Convert to degrees if rotation.
-                targets_plot = np.rad2deg(targets_log[run][:, j]) if dof_ind > 2 else targets_log[run][:, j]
-                outputs_plot = np.rad2deg(outputs_log[run][:, j]) if dof_ind > 2 else outputs_log[run][:, j]
+                targets_plot = np.rad2deg(targets_log[live_run_id][:, dof_ind]) if dof_ind > 2 else targets_log[live_run_id][:, dof_ind]
+                outputs_plot = np.rad2deg(outputs_log[live_run_id][:, dof_ind]) if dof_ind > 2 else outputs_log[live_run_id][:, dof_ind]
 
                 f = plt.figure(figsize=(18,6))
                 f.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -123,13 +121,13 @@ class Plotting:
                 p2 = plt.plot(outputs_plot, 'C0')
                 plt.legend((p1[0], p2[0]), ('ground truth', 'estimated'))
 
-                ylabel = 'Degrees' if j > 2 else 'Metres'
+                ylabel = 'Degrees' if dof_ind > 2 else 'Metres'
                 plt.ylabel(ylabel)
                 plt.xlabel('Vertex')
-                plt.title(f'Error - {dof_str[j]}')
+                plt.title(f'Error - {dof_str[dof_ind]}')
 
-                plt.savefig(f'{directory}/pose_{dof_str[j]}_live_run_{live_run_id}.png', format='png')
-                plt.savefig(f'{directory}/pose_{dof_str[j]}_live_run_{live_run_id}.pdf', format='pdf')
+                plt.savefig(f'{directory}/pose_{dof_str[dof_ind]}_live_run_{live_run_id}.png', format='png')
+                plt.savefig(f'{directory}/pose_{dof_str[dof_ind]}_live_run_{live_run_id}.pdf', format='pdf')
                 plt.close()
 
     # def plot_cumulative_err(self, errors, error_type, unit, path_name, run_id, base_id):
