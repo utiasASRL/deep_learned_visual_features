@@ -2,7 +2,7 @@
   "home_path": "/home/<user_name>",
 
   "experiment_name": "train_model",
-  "dataset_name": "multiseason",
+  "dataset_name": "dataset_multiseason",
   "checkpoint_name": "network_v1",
 
   "training": {
