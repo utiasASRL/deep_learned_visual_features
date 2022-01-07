@@ -33,15 +33,55 @@ The neural network consists of an encoder and two decoders. The descriptors are 
 
 ## Training Data
 
+We train the network with data collected during autonomous path-following with a Grizzly robot using Multi-Experience VT&R. VT&R stores images and relative poses between in a spatio-temporal pose graph. Each time the robot repeats a path, new data is added to the pose graph. We can sample images and relative ground truth poses from a large range of appearance conditions from this pose graph. We train using data from the UTIAS Long-Term Localization and Mapping Dataset. The data is desribed in detail and can be download from this [website](http://asrl.utias.utoronto.ca/datasets/2020-vtr-dataset/). 
+
 ## Getting Started
 
 We provide the docker 
 
 ### Docker
 
+```
+cd docker
+docker image build --shm-size=64g -t <docker_image_name> .
+```
+
 ### Generate Datset
+
+```
+cd docker
+./docker_data.sh
+```
+
+```
+python -m data.build_train_test_dataset_loc --config <path_to_code>/deep_learned_visual_features/config/data.json
+```
 
 ### Train
 
+```
+cd docker
+./docker_test.sh
+```
+
+```
+python -m src.train --config <path_to_code>/deep_learned_visual_features/config/train.json
+```
+
 ### Test
+
+```
+cd docker
+./docker_test.sh
+```
+
+```
+python -m src.test --config <path_to_code>/deep_learned_visual_features/config/test.json
+```
+
+## Experimental Results
+
+We use the learned features in the VT&R system such that we can test them in closed-loop operation on a robot outdoors. The code for VT&R is available open-source [here](https://utiasasrl.github.io/). 
+
+
 
