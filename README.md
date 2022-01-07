@@ -2,7 +2,7 @@
 
 ![](https://github.com/utiasASRL/deep_learned_visual_features/blob/main/figures/overview.png?raw=true)
 
-We learn visual features for localization across a large appearace change and used them in Visual Teach and repeat (VT&R) for closed-loop path-following on a robot outdoors. In VT&R, we manually drive the robot to teach a path (and build a map) that the robot subsequently repeats autonoously. This [video](https://www.youtube.com/watch?v=KkG6TQOVXak) shows a live demonstration of localization between daytime and after dark.  
+We learn visual features for localization across a large appearace change and used them in Visual Teach and repeat (VT&R) for closed-loop path-following on a robot outdoors. In VT&R, we manually drive the robot to teach a path (and build a map) that the robot subsequently repeats autonoously. We include two videos, one that details the [method and experiments](https://www.youtube.com/watch?v=26AVY1ITE3Q) and another that includes a [live demonstration](https://www.youtube.com/watch?v=KkG6TQOVXak) of localization between daytime and after dark.  
 
 We train a neural network to predict sparse keypoints with associated descriptors and scores that can be used together with a classical pose estimator for localization. Our training pipeline includes a differentiable pose estimator such that training can be supervised with ground truth poses from data collected earlier. 
 
