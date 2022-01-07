@@ -52,6 +52,8 @@ docker image build --shm-size=64g -t <docker_image_name> .
 
 As mentioned above, we use data from the UTIAS Long-Term Localization and Mapping Dataset. We have written a script that will generate training, validation, and test datasets from the localization data. We sample image pairs and relative poses from the VT&R pose graph. The code for dataset generation is found under the `data` folder. Our code assumes that the data is structured the same way as described on the dataset [website](http://asrl.utias.utoronto.ca/datasets/2020-vtr-dataset/). 
 
+For the traiing and validation data we sample randomly from the pose graph for a chosen set of runs. For the test data we sample image pairs and relative poses sequentialy for the whole run to emulate localization for each run. We localize each of the chosen test runs to each other.
+
 With our code, we have generated one set of training, testing, and validation datasets using the UTIAS Multiseason data and another set using the UTIAS In-The-Dark data. These can be downloaded using the `download_dataset.sh` script. This stores the data sample ids and ground truth labels (poses) needed in Pytorch. The images from the UTIAS Long-Term Localization and Mapping Dataset still need to be stored one the computer to be available to load.
 
 Alternatively, if wanting to generate new datasets from scratch, this can be done by running a docker container as shown below. The `docker_data.sh` has to be updated with the correct file paths, where place holders are present.
@@ -103,6 +105,27 @@ The command for running the python test script is the following:
 ```
 python -m src.test --config <path_to_code>/deep_learned_visual_features/config/test.json
 ```
+### Configurations
+
+In the `config` folder we provide json files that set the configuration parameters for the different tasks. 
+
+#### Generate Dataset
+
+In `config/data.json`, we find the following configurations:
+
+`dataset_name`: give the daaset a name to reference when loading it for training/testing.\
+`num_train_samples`: the number of training samples we want to generate.\
+`num_validation_samples`: the number of validation samples we want to generate.\
+`max_temporal_len`: when localizing live vertices to the map vertices, allow up to this topoligical distance between them.\
+`dataset`: image height and width.\
+`train_paths`: list of name of paths we want to include in he training data ('multiseason', 'inthedark'). Use the name you have stored the dataset under on your computer, i.e. `/path_to_data/dataset_name/run_000001/...`. \
+`test_paths`: list of name of paths we want to include in the test data.   
+`sampling_ratios_train`: for each path in the training data, which portion of the total samples should it contribute. If we use two paths ('multiseason', 'inthedark') we could for example sample 0.7 from 'multiseason' and 0.3 from 'intthedark'.\
+`sampling_ratios_valid`: same as above for validation data.\
+`train_runs`: the runs from the paths to include in the training data.\
+`validation_runs`: the runs from the paths to include in the validation data.\
+`test_runs`:the runs from the paths to include in the test data.\
+`temporal_len`: same topoligical distance as max_temporal_len above. Here we set one fixed distance for each test run (when the specific run is used as the teach/map run).
 
 ## Experimental Results
 
