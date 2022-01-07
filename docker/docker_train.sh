@@ -11,6 +11,6 @@ docker run --gpus "device=0" -d -it --rm --name train_model --shm-size=64g \
 -v /home/<user_name>/results:/home/<user_name>/results \
 -v /home/<user_name>/networks:/home/<user_name>/networks \
 -v /home/<user_name>/datasets:/home/<user_name>/datasets \
-docker_image_name \
+<docker_image_name> \
 bash -c "cd /home/<user_name>/code/deep_learned_visual_features && python -m src.train --config /home/<user_name>/code/deep_learned_visual_features/config/train.json"
 
