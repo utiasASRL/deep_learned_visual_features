@@ -2,8 +2,8 @@
   "home_path": "/home/<user_name>",
 
   "experiment_name": "test_model",
-  "dataset_name": "multiseason",
-  "checkpoint_name": "network_multiseason_layer16_window1616",
+  "dataset_name": "dataset_multiseason",
+  "checkpoint_name": "network_multiseason_layer16",
 
   "network": {
     "num_channels": 3,
@@ -21,7 +21,7 @@
     "on": true,
     "type": "ransac",
     "dim": ["3D"],
-    "inlier_threshold": 0.4,
+    "inlier_threshold": 0.6,
     "error_tolerance":  {"3D": 4.0, "2D": 50.0},
     "num_iterations": 15
   },

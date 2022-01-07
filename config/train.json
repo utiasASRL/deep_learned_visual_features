@@ -2,8 +2,8 @@
   "home_path": "/home/<user_name>",
 
   "experiment_name": "train_model",
-  "dataset_name": "dataset_multiseason",
-  "checkpoint_name": "network_multiseason_v1",
+  "dataset_name": "multiseason",
+  "checkpoint_name": "network_v1",
 
   "training": {
     "start_pose_estimation": 4,
@@ -27,9 +27,7 @@
     "on": true,
     "type": "ground_truth",
     "dim": ["plane"],
-    "inlier_threshold": 0.4,
-    "error_tolerance":  {"3D": 4.0, "2D": 50.0, "plane": 3.0},
-    "num_iterations": 15
+    "error_tolerance":  {"3D": 4.0, "2D": 50.0, "plane": 3.0}
   },
 
   "data_loader": {
