@@ -190,7 +190,7 @@ In `config/test.json`, we find the following configurations:
 `pipeline`: height and with of the windows in which we detect a keypoint and a parameter for whether to do dense or sparse matching of descriptors. \
 `outlier_rejection`: \
  &nbsp;&nbsp;&nbsp;&nbsp;`type`: outlier rejection is done with RANSAC during testing. \
- &nbsp;&nbsp;&nbsp;&nbsp;`dim`: doing outlier rejection for 2D points, 3D points, or in the plane (only considering x, y, heading). \
+ &nbsp;&nbsp;&nbsp;&nbsp;`dim`: doing outlier rejection for 2D points or 3D points. \
  &nbsp;&nbsp;&nbsp;&nbsp;`inlier_threshold`: minimum ratio of inliers rewuired to stop RANSAC early. \
  &nbsp;&nbsp;&nbsp;&nbsp;`error_tolerance`: error threshold to be considered an inlier. \
  &nbsp;&nbsp;&nbsp;&nbsp;`error_tolerance`: number of iterations to run RANSAC. \
