@@ -109,6 +109,28 @@ python -m src.test --config <path_to_code>/deep_learned_visual_features/config/t
 
 In the `config` folder we provide json files that set the configuration parameters for the different tasks. 
 
+#### Important note
+The UTIAS Multiseason and UTIAS In-The-Dark datasets were collected with two different cameras and hence their calibration parameters are different. 
+
+```
+UTIAS Multiseason camera parameters:
+width: 512
+height: 384
+focal length: 388.425
+cx: 253.502
+cy: 196.822
+baseline: 0.239946
+```
+```
+UTIAS In-The-Dark camera parameters:
+width: 512
+height: 384
+focal length: 387.777
+cx: 257.446
+cy: 197.718
+baseline: 0.239965
+```
+
 #### Generate Dataset
 
 In `config/data.json`, we find the following configurations:
@@ -126,6 +148,59 @@ In `config/data.json`, we find the following configurations:
 `validation_runs`: the runs from the paths to include in the validation data.\
 `test_runs`:the runs from the paths to include in the test data.\
 `temporal_len`: same topoligical distance as max_temporal_len above. Here we set one fixed distance for each test run (when the specific run is used as the teach/map run).
+
+#### Train
+
+In `config/train.json`, we find the following configurations:
+
+`dataset_name`: name of the dataset to use. \
+`checkpoint_name`: name for the checkpoint to store the model, alternatively load and resume training an exsiting model. \
+`training`: \
+&nbsp;&nbsp;&nbsp;&nbsp;`start_pose_estimation`: we can train initially using only the keypoint loss. This says which epoch to start pose estimation and using the pose loss. \
+&nbsp;&nbsp;&nbsp;&nbsp;`max_epochs`: stop training after this many epochs. \
+&nbsp;&nbsp;&nbsp;&nbsp;`patience`: how many epochs to run with validation loss not improving before stopping. \
+`network`: \
+&nbsp;&nbsp;&nbsp;&nbsp;`num_channels`: number of input channels, 3 for one RGB image. \
+&nbsp;&nbsp;&nbsp;&nbsp;`num_classes`: number of classes for the output of the decoders, should be 1. \
+&nbsp;&nbsp;&nbsp;&nbsp;`layer_size`: the size of the first layer of the encoder. Subsequent layer sizes are determined automatically. \
+`pipeline`: height and with of the windows in which we detect a keypoint and a parameter for whether to do dense or sparse matching of descriptors. \
+`outlier_rejection`: \
+ &nbsp;&nbsp;&nbsp;&nbsp;`type`: outlier rejection is done with ground truth poses during training. \
+ &nbsp;&nbsp;&nbsp;&nbsp;`dim`: doing outlier rejection for 2D points, 3D points, or in the plane (only considering x, y, heading). \
+ &nbsp;&nbsp;&nbsp;&nbsp;`error_tolerance`: error threshold to be considered an inlier. \
+`data_loader`: condifgurations for the data loader. \
+`stereo`: camera calibration parameters. \
+`dataset`: parameters for the dataset such as image heigh, width and whether to normalize the images and include disparity. \
+`optimizer`: configurations for the optimizer. \
+`scheduler`: configurations for the scheduler. \
+`loss`: \
+&nbsp;&nbsp;&nbsp;&nbsp;`types`: the loss types to use (`pose`, `pose_plane` (only SE(2)), `keypoint_2D` (error between 2D image coordinates), `keypoint_3D` error between 3D points), `keypoint_plane` (only SE(2)). \
+&nbsp;&nbsp;&nbsp;&nbsp;`weights`: weights for the different types of losses.
+
+#### Test
+
+In `config/test.json`, we find the following configurations:
+
+`dataset_name`: name of the dataset to use. \
+`checkpoint_name`: name for the model checkpoint to load. \
+`network`: \
+&nbsp;&nbsp;&nbsp;&nbsp;`num_channels`: number of input channels, 3 for one RGB image. \
+&nbsp;&nbsp;&nbsp;&nbsp;`num_classes`: number of classes for the output of the decoders, should be 1. \
+&nbsp;&nbsp;&nbsp;&nbsp;`layer_size`: the size of the first layer of the encoder. Subsequent layer sizes are determined automatically. \
+`pipeline`: height and with of the windows in which we detect a keypoint and a parameter for whether to do dense or sparse matching of descriptors. \
+`outlier_rejection`: \
+ &nbsp;&nbsp;&nbsp;&nbsp;`type`: outlier rejection is done with RANSAC during testing. \
+ &nbsp;&nbsp;&nbsp;&nbsp;`dim`: doing outlier rejection for 2D points, 3D points, or in the plane (only considering x, y, heading). \
+ &nbsp;&nbsp;&nbsp;&nbsp;`inlier_threshold`: minimum ratio of inliers rewuired to stop RANSAC early. \
+ &nbsp;&nbsp;&nbsp;&nbsp;`error_tolerance`: error threshold to be considered an inlier. \
+ &nbsp;&nbsp;&nbsp;&nbsp;`error_tolerance`: number of iterations to run RANSAC. \
+`data_loader`: condifgurations for the data loader. \
+`stereo`: camera calibration parameters. \
+`dataset`: parameters for the dataset such as image heigh, width and whether to normalize the images and include disparity. \
+`optimizer`: configurations for the optimizer. \
+`scheduler`: configurations for the scheduler. \
+`loss`: \
+&nbsp;&nbsp;&nbsp;&nbsp;`types`: we include the pose loss type during testing so we know if we are estimation the full SE(3) pose (`pose`) or only SE(2) (`pose_plane`).
 
 ## Experimental Results
 
