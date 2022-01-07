@@ -167,7 +167,9 @@ In `config/train.json`, we find the following configurations:
 `outlier_rejection`: \
  &nbsp;&nbsp;&nbsp;&nbsp;`type`: outlier rejection is done with ground truth poses during training. \
  &nbsp;&nbsp;&nbsp;&nbsp;`dim`: doing outlier rejection for 2D points, 3D points, or in the plane (only considering x, y, heading). \
+ &nbsp;&nbsp;&nbsp;&nbsp;`inlier_threshold`: ignored, only needed for RANSAC during testing. \
  &nbsp;&nbsp;&nbsp;&nbsp;`error_tolerance`: error threshold to be considered an inlier. \
+ &nbsp;&nbsp;&nbsp;&nbsp;`num_iterations`: ignored, only needed for RANSAC during testing. \
 `data_loader`: condifgurations for the data loader. \
 `stereo`: camera calibration parameters. \
 `dataset`: parameters for the dataset such as image heigh, width and whether to normalize the images and include disparity. \
@@ -193,7 +195,7 @@ In `config/test.json`, we find the following configurations:
  &nbsp;&nbsp;&nbsp;&nbsp;`dim`: doing outlier rejection for 2D points or 3D points. \
  &nbsp;&nbsp;&nbsp;&nbsp;`inlier_threshold`: minimum ratio of inliers rewuired to stop RANSAC early. \
  &nbsp;&nbsp;&nbsp;&nbsp;`error_tolerance`: error threshold to be considered an inlier. \
- &nbsp;&nbsp;&nbsp;&nbsp;`error_tolerance`: number of iterations to run RANSAC. \
+ &nbsp;&nbsp;&nbsp;&nbsp;`num_iterations`: number of iterations to run RANSAC. \
 `data_loader`: condifgurations for the data loader. \
 `stereo`: camera calibration parameters. \
 `dataset`: parameters for the dataset such as image heigh, width and whether to normalize the images and include disparity. \
