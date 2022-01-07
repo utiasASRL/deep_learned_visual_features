@@ -12,14 +12,14 @@
 FROM nvcr.io/nvidia/pytorch:20.11-py3
 
 # Python OpenCV should be available, if not, run the following.
-#RUN apt-get update
-#RUN apt-get upgrade -y --no-install-recommends
-#RUN apt-get update
+RUN apt-get update
+RUN apt-get upgrade -y --no-install-recommends
+RUN apt-get update
 
-#RUN pip install --upgrade pip
-#RUN pip install opencv-python
+RUN pip install --upgrade pip
+RUN pip install opencv-python==3.4.8.29
 
 # Add a user if desirable
-RUN useradd -ms /bin/bash -u <uid> <user_name>
-USER <user_name>
-WORKDIR /home/<user_name>
+#RUN useradd -ms /bin/bash -u <uid> <user_name>
+#USER <user_name>
+#WORKDIR /home/<user_name>
