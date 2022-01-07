@@ -27,7 +27,9 @@
     "on": true,
     "type": "ground_truth",
     "dim": ["plane"],
-    "error_tolerance":  {"3D": 4.0, "2D": 50.0, "plane": 3.0}
+    "inlier_threshold": 0.6,
+    "error_tolerance":  {"3D": 4.0, "2D": 50.0, "plane": 3.0},
+    "num_iterations": 15
   },
 
   "data_loader": {
