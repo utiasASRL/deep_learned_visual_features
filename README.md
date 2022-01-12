@@ -131,6 +131,8 @@ cy: 197.718
 baseline: 0.239965
 ```
 
+The poses from the dataset are all given in the vehicle frame of the robot. In our code we have a transform `T_s_v` that is the vehicle to sensor transform for the robot. The sensor frame coincides with the left camera frame of the stereo camera. In the code we compute pose losses with the poses in the vehicle frame. When computing the pose from 3D points using SVD, the 3D points are in the sensor frame. Hence the initially computed pose is given in the sensor frame before we transform it back to the vehicle frame, see code [here](https://github.com/utiasASRL/deep_learned_visual_features/blob/main/src/model/svd_block.py#L71).  
+
 #### Generate Dataset
 
 In `config/data.json`, we find the following configurations:
