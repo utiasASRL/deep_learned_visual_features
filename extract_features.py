@@ -118,7 +118,7 @@ class LearnedFeatureDetector(nn.Module):
 if __name__ == '__main__':
 
     cuda = False
-    checkpoint = '/home/mona/data/deep_learned_features/networks/network_multiseason_inthedark_layer16.pth'
+    checkpoint = 'path_to_network/network_multiseason_inthedark_layer16.pth'
     learned_feature_detector = LearnedFeatureDetector(n_channels=3, 
                                                       layer_size=16, 
                                                       window_height=16, 
@@ -135,3 +135,4 @@ if __name__ == '__main__':
     print(keypoints.size())
     print(descriptors.size())
     print(scores.size())
+    
