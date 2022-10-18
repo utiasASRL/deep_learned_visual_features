@@ -37,7 +37,7 @@ We train the network with data collected during autonomous path-following with a
 
 ## Getting Started
 
-We explain how to run code for generating datasets, training the model, and testing the model. We provide a docker container that can be used to run the code. If running without docker is preferred, we provide a `requirements.txt` to list the neccessary dependencies and provide the the commands neeed to run the python scripts. 
+We explain how to run code for generating datasets, training the model, testing the model, and extracting features. We provide a docker container that can be used to run the code. If running without docker is preferred, we provide a `requirements.txt` to list the neccessary dependencies and provide the the commands neeed to run the python scripts. 
 
 ### Docker
 
@@ -46,6 +46,13 @@ In the `docker` folder, we provide a Dockerfile that can be used to buid an imag
 ```
 cd docker
 docker image build --shm-size=64g -t <docker_image_name> .
+```
+### Extract Features
+
+We provide a simple script that shows how keypoints, scores, and descriptors can be extracted from an image. 
+
+```
+python extract_features.py
 ```
 
 ### Generate Datset
